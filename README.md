@@ -8,11 +8,9 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-<img src="public/tr.png" alt="Turkish Earthquake Monitor" width="75" />
-
 **Real-time visualization of earthquake data across Turkey**
 
-[Demo](https://turkish-earthquake-monitor.vercel.app) | [Report Bug](https://github.com/VanColt/Turkish_Earthquake_Monitor/issues) | [Request Feature](https://github.com/VanColt/Turkish_Earthquake_Monitor/issues)
+[Demo](https://kandilli.vercel.app) | [Report Bug](https://github.com/VanColt/Turkish_Earthquake_Monitor/issues) | [Request Feature](https://github.com/VanColt/Turkish_Earthquake_Monitor/issues)
 
 </div>
 
