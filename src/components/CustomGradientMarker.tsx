@@ -20,7 +20,16 @@ const CustomGradientMarker: React.FC<CustomGradientMarkerProps> = ({
   onClick
 }) => {
   const markerRef = useRef<L.Marker | null>(null);
-  const map = useMap();
+  // We don't need to use map in this component
+  useMap(); // Keep the hook call without assigning to variable
+  
+  // Create an initial empty icon to prevent errors
+  const initialIcon = L.divIcon({
+    html: `<div></div>`,
+    className: 'custom-gradient-marker-initial',
+    iconSize: [1, 1],
+    iconAnchor: [0, 0]
+  });
 
   useEffect(() => {
     if (!markerRef.current) return;
@@ -85,6 +94,7 @@ const CustomGradientMarker: React.FC<CustomGradientMarkerProps> = ({
   return (
     <Marker
       position={position}
+      icon={initialIcon}
       ref={markerRef}
       eventHandlers={{
         click: onClick

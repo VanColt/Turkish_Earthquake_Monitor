@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Table, Card, Typography, Tag, Input, Button, Space, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
 import { SearchOutlined, EnvironmentOutlined } from '@ant-design/icons';
@@ -27,22 +27,23 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
   const [searchText, setSearchText] = useState('');
   const [searchedColumn, setSearchedColumn] = useState('');
 
-  const handleSearch = (
-    selectedKeys: string[],
-    confirm: FilterDropdownProps['confirm'],
-    dataIndex: string,
-  ) => {
-    confirm();
-    setSearchText(selectedKeys[0]);
-    setSearchedColumn(dataIndex);
-  };
+  // Memoize handlers to prevent recreating functions on each render
+  const handleSearch = useCallback(
+    (selectedKeys: string[], confirm: FilterDropdownProps['confirm'], dataIndex: string) => {
+      confirm();
+      setSearchText(selectedKeys[0]);
+      setSearchedColumn(dataIndex);
+    },
+    []
+  );
 
-  const handleReset = (clearFilters: () => void) => {
+  const handleReset = useCallback((clearFilters: () => void) => {
     clearFilters();
     setSearchText('');
-  };
+  }, []);
 
-  const getColumnSearchProps = (dataIndex: keyof Earthquake | 'closestCity') => ({
+  // Memoize the column search props function to prevent recreation on each render
+  const getColumnSearchProps = useCallback((dataIndex: keyof Earthquake | 'closestCity') => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: FilterDropdownProps) => (
       <div style={{ padding: 8 }}>
         <Input
@@ -75,20 +76,19 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
     filterIcon: (filtered: boolean) => (
       <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />
     ),
-    onFilter: (value: string, record: Earthquake) => {
+    onFilter: (value: string | number | boolean | bigint, record: Earthquake) => {
+      // Convert value to string for comparison
+      const searchValue = String(value).toLowerCase();
+      
       if (dataIndex === 'closestCity') {
-        return record.location_properties.closestCity.name
-          .toString()
-          .toLowerCase()
-          .includes(value.toLowerCase());
+        const cityName = record.location_properties.closestCity.name;
+        return cityName ? cityName.toString().toLowerCase().includes(searchValue) : false;
       }
       
-      if (!record[dataIndex as keyof Earthquake]) return false;
+      const fieldValue = record[dataIndex as keyof Earthquake];
+      if (!fieldValue) return false;
       
-      return record[dataIndex as keyof Earthquake]
-        .toString()
-        .toLowerCase()
-        .includes(value.toLowerCase());
+      return String(fieldValue).toLowerCase().includes(searchValue);
     },
     render: (text: string, record: Earthquake) => {
       if (dataIndex === 'closestCity') {
@@ -107,9 +107,10 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
       }
       return text;
     },
-  });
+  }), [searchText, searchedColumn, handleSearch, handleReset]);
 
-  const columns: TableProps<Earthquake>['columns'] = [
+  // Memoize columns to prevent recreating the array on every render
+  const columns = useMemo<TableProps<Earthquake>['columns']>(() => [
     {
       title: 'Date & Time',
       dataIndex: 'date_time',
@@ -117,9 +118,9 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
       sorter: (a, b) => dayjs(a.date_time).unix() - dayjs(b.date_time).unix(),
       defaultSortOrder: 'descend',
       render: (text) => (
-        <Tooltip title={dayjs(text).format('YYYY-MM-DD HH:mm:ss')}>
+        <span title={dayjs(text).format('YYYY-MM-DD HH:mm:ss')}>
           {dayjs(text).format('MM/DD HH:mm')}
-        </Tooltip>
+        </span>
       ),
       width: '12%',
     },
@@ -128,11 +129,12 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
       dataIndex: 'title',
       key: 'title',
       ...getColumnSearchProps('title'),
-      render: (text) => (
-        <Tooltip title={text}>
-          <div className="truncate max-w-[150px]">{text}</div>
-        </Tooltip>
-      ),
+      render: (text) => {
+        // Use CSS truncation instead of Ant Design's EllipsisMeasure
+        return (
+          <div className="truncate max-w-[150px] whitespace-nowrap overflow-hidden text-ellipsis" title={text}>{text}</div>
+        );
+      },
       width: '25%',
     },
     {
@@ -179,18 +181,20 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Tooltip title="View on map">
-          <Button 
-            type="text"
-            shape="circle"
-            icon={<EnvironmentOutlined />} 
-            onClick={() => onEarthquakeSelect(record)}
-          />
-        </Tooltip>
+        <Button 
+          type="text"
+          shape="circle"
+          icon={<EnvironmentOutlined />} 
+          onClick={(e) => {
+            e.stopPropagation();
+            onEarthquakeSelect(record);
+          }}
+          title="View on map"
+        />
       ),
       width: '8%',
     },
-  ];
+  ], [getColumnSearchProps, onEarthquakeSelect]);
 
   return (
     <Card 
@@ -210,15 +214,17 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
           showTotal: (total) => `Total ${total} earthquakes`,
           className: 'custom-pagination'
         }}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: true }}
         size="middle"
         rowClassName={(record) => 
           record._id === selectedEarthquake?._id ? 'bg-gray-800' : ''
         }
-        onRow={(record) => ({
-          onClick: () => onEarthquakeSelect(record),
-          className: 'cursor-pointer'
-        })}
+        onRow={useMemo(() => {
+          return (record: Earthquake) => ({
+            onClick: () => onEarthquakeSelect(record),
+            className: 'cursor-pointer'
+          });
+        }, [onEarthquakeSelect])}
       />
     </Card>
   );

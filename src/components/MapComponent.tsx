@@ -3,9 +3,21 @@
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { Earthquake, getMagnitudeColor, getMagnitudeSize, getMarkerOpacity } from '@/services/earthquakeService';
 import CustomGradientMarker from './CustomGradientMarker';
 import { Tag } from 'antd';
+
+// Delete default icon references to prevent 404 errors
+// This removes the need for marker-icon.png and marker-shadow.png
+// Use type assertion to avoid TypeScript error
+// @ts-ignore - _getIconUrl exists at runtime but is not in the type definitions
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: null,
+  iconUrl: null,
+  shadowUrl: null,
+});
 
 // Component to automatically update map view when selected earthquake changes
 const MapUpdater = ({ 

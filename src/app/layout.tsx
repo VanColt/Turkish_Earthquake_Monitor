@@ -17,6 +17,7 @@ export const metadata: Metadata = {
   keywords: ["earthquake", "turkey", "monitor", "dashboard", "real-time", "seismic"],
 };
 
+// Add suppressHydrationWarning to prevent hydration mismatch errors
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,7 +29,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
-      <body className="antialiased bg-gray-900 text-gray-100">
+      <body className="antialiased bg-gray-900 text-gray-100" suppressHydrationWarning={true}>
         {children}
       </body>
     </html>

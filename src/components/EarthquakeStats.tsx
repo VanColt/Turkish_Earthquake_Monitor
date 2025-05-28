@@ -85,9 +85,7 @@ const EarthquakeStats: React.FC<EarthquakeStatsProps> = ({ earthquakes, loading,
       title={
         <div className="flex justify-between items-center">
           <Title level={5} className="m-0">Earthquake Statistics</Title>
-          <Tooltip title={timeFrame}>
-            <InfoCircleOutlined className="text-gray-400" />
-          </Tooltip>
+          <InfoCircleOutlined className="text-gray-400 cursor-help" title={timeFrame} />
         </div>
       }
     >
