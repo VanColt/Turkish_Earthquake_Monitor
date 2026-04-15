@@ -221,9 +221,9 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
         generateId: false,
       });
 
-      // Per-country land fill. `match` on the feature id lets us paint each
-      // country independently. Rendered above the base background but below
-      // boundaries so country borders still show.
+      // Per-country land fill. Rendered BELOW the water layer so that
+      // the basemap's water/coastlines clip the polygon precisely — this
+      // makes per-country color look native instead of overlay-painted.
       map.addLayer(
         {
           id: 'country-fill',
@@ -233,15 +233,15 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
             'fill-color': [
               'match',
               ['get', 'name'],
-              'Turkey', '#2a2a36', // Türkiye — the subject
+              'Turkey', '#2a2a36',
               ['Cyprus', 'Greece', 'Bulgaria', 'Georgia', 'Armenia', 'Azerbaijan', 'Iran', 'Iraq', 'Syria'],
-              '#1d1d26', // neighbours
-              /* default — rest of world */ '#16161e',
+              '#1d1d26',
+              /* rest of world */ '#16161e',
             ],
             'fill-opacity': 1,
           },
         },
-        'boundary-state'
+        'water'
       );
 
       // Earthquake source + layers
