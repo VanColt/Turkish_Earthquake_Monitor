@@ -7,6 +7,8 @@ import { ConfigProvider, theme, Modal } from 'antd';
 import TopBar from '@/components/TopBar';
 import EventFeed from '@/components/EventFeed';
 import EventInspector from '@/components/EventInspector';
+import SettingsPanel from '@/components/SettingsPanel';
+import { DEFAULT_SETTINGS, Settings } from '@/lib/settings';
 
 import {
   Earthquake,
@@ -40,7 +42,14 @@ export default function Home() {
   const [metadata, setMetadata] = useState<EarthquakeResponse['metadata'] | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [feedVisible, setFeedVisible] = useState(true);
+
+  // Apply the magnitude filter once for both the map and the feed.
+  const visibleEarthquakes =
+    settings.minMagnitude > 0
+      ? earthquakes.filter((e) => e.mag >= settings.minMagnitude)
+      : earthquakes;
   const { msg, show } = useToast();
 
   const lastIngestedRef = useRef<number | null>(null);
@@ -128,10 +137,11 @@ export default function Home() {
       <div className="fixed inset-0 overflow-hidden" style={{ background: 'var(--void)' }}>
         {/* Globe — full bleed */}
         <Globe
-          earthquakes={earthquakes}
+          earthquakes={visibleEarthquakes}
           selected={selected}
           onSelect={setSelected}
           onOpenSettings={() => setSettingsOpen(true)}
+          settings={settings}
         />
 
         {/* Reticles on the viewport corners */}
@@ -151,7 +161,7 @@ export default function Home() {
         {feedVisible && (
           <div className="absolute left-4 top-24 bottom-4 z-20 w-[340px] hidden md:flex">
             <EventFeed
-              earthquakes={earthquakes}
+              earthquakes={visibleEarthquakes}
               selected={selected}
               onSelect={setSelected}
             />
@@ -196,18 +206,15 @@ export default function Home() {
           </div>
         )}
 
-        {/* Settings modal — placeholder, content TBD */}
+        {/* Settings modal */}
         <Modal
           title="VIEW SETTINGS"
           open={settingsOpen}
           onCancel={() => setSettingsOpen(false)}
           footer={null}
-          width={420}
+          width={460}
         >
-          <div className="text-[12px] text-ink-2 mono leading-relaxed">
-            Settings will live here — magnitude filter defaults, marker style,
-            label density, color palette, etc. We&rsquo;ll wire these up next.
-          </div>
+          <SettingsPanel settings={settings} onChange={setSettings} />
         </Modal>
 
         {/* About modal */}

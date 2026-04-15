@@ -7,12 +7,14 @@ import maplibregl, {
   StyleSpecification,
 } from 'maplibre-gl';
 import type { Earthquake } from '@/services/earthquakeService';
+import { Settings, DEFAULT_SETTINGS } from '@/lib/settings';
 
 interface GlobeProps {
   earthquakes: Earthquake[];
   selected: Earthquake | null;
   onSelect: (eq: Earthquake) => void;
   onOpenSettings?: () => void;
+  settings?: Settings;
 }
 
 // Custom MapLibre control: a single button. We use it for the "view settings"
@@ -348,6 +350,7 @@ export default function Globe({
   selected,
   onSelect,
   onOpenSettings,
+  settings = DEFAULT_SETTINGS,
 }: GlobeProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -444,6 +447,40 @@ export default function Globe({
         5, '#f48a3a',
         6, '#e84545',
       ];
+
+      // 0. Heatmap — toggleable density visualization
+      map.addLayer({
+        id: 'quakes-heat',
+        type: 'heatmap',
+        source: 'quakes',
+        layout: { visibility: 'none' },
+        paint: {
+          // Bigger magnitudes contribute more
+          'heatmap-weight': [
+            'interpolate', ['linear'], ['get', 'mag'],
+            0, 0.05, 3, 0.3, 5, 0.7, 7, 1,
+          ],
+          // Intensifies as we zoom in
+          'heatmap-intensity': [
+            'interpolate', ['linear'], ['zoom'],
+            0, 0.6, 6, 1.2, 10, 2,
+          ],
+          // Color ramp — cool at sparse density, hot at peaks
+          'heatmap-color': [
+            'interpolate', ['linear'], ['heatmap-density'],
+            0, 'rgba(0,0,0,0)',
+            0.15, 'rgba(95, 216, 184, 0.35)',
+            0.4, 'rgba(245, 207, 90, 0.55)',
+            0.7, 'rgba(244, 138, 58, 0.75)',
+            1, 'rgba(232, 69, 69, 0.85)',
+          ],
+          'heatmap-radius': [
+            'interpolate', ['linear'], ['zoom'],
+            2, 8, 5, 18, 8, 32, 12, 60,
+          ],
+          'heatmap-opacity': 0.9,
+        },
+      });
 
       // 1. Outer glow — soft halo so events are spottable from afar
       map.addLayer({
@@ -591,6 +628,38 @@ export default function Globe({
     const [lng, lat] = selected.geojson.coordinates;
     map.flyTo({ center: [lng, lat], zoom: 7.2, duration: 1600, pitch: 0, bearing: 0 });
   }, [selected]);
+
+  // Apply settings — view mode and layer toggles.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      const showHeat = settings.viewMode !== 'markers';
+      const showMarkers = settings.viewMode !== 'heatmap';
+
+      const setVis = (id: string, visible: boolean) => {
+        if (map.getLayer(id)) {
+          map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+        }
+      };
+
+      setVis('quakes-heat', showHeat);
+      ['quakes-glow', 'quakes-ring', 'quakes-core', 'quakes-center', 'quakes-pulse'].forEach(
+        (id) => setVis(id, showMarkers)
+      );
+
+      // Basemap toggles
+      ['place-country', 'place-city-other', 'place-city-tr', 'place-town-tr', 'place-town-other'].forEach(
+        (id) => setVis(id, settings.showLabels)
+      );
+      ['road-major', 'road-minor'].forEach((id) => setVis(id, settings.showHighways));
+      setVis('boundary-state', settings.showProvinces);
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once('load', apply);
+  }, [settings]);
 
   return (
     <div
