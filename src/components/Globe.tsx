@@ -59,7 +59,71 @@ const DARK_STYLE: StyleSpecification = {
       paint: { 'fill-color': '#05050a', 'fill-antialias': true },
     },
 
-    // Country borders — thin, cool gray
+    // Subtle landcover — gives the world some texture beneath
+    {
+      id: 'landcover',
+      type: 'fill',
+      source: 'ofm',
+      'source-layer': 'landcover',
+      paint: {
+        'fill-color': [
+          'match',
+          ['get', 'class'],
+          'wood', '#1c1d22',
+          'grass', '#1d1e22',
+          'ice', '#222330',
+          'sand', '#252329',
+          '#1a1a24',
+        ],
+        'fill-opacity': 0.45,
+      },
+    },
+
+    // Urban areas — visible patches over cities
+    {
+      id: 'landuse-urban',
+      type: 'fill',
+      source: 'ofm',
+      'source-layer': 'landuse',
+      filter: ['in', ['get', 'class'], ['literal', ['residential', 'commercial', 'industrial']]],
+      minzoom: 5,
+      paint: {
+        'fill-color': '#2a2a34',
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 5, 0.3, 9, 0.6],
+      },
+    },
+
+    // Major highways — thin amber-tinted lines
+    {
+      id: 'road-major',
+      type: 'line',
+      source: 'ofm',
+      'source-layer': 'transportation',
+      filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk']]],
+      minzoom: 5,
+      paint: {
+        'line-color': '#5a4a30',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.3, 8, 0.8, 12, 1.6],
+        'line-opacity': 0.7,
+      },
+    },
+
+    // Secondary roads
+    {
+      id: 'road-minor',
+      type: 'line',
+      source: 'ofm',
+      'source-layer': 'transportation',
+      filter: ['in', ['get', 'class'], ['literal', ['primary', 'secondary']]],
+      minzoom: 7,
+      paint: {
+        'line-color': '#3a3a44',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 0.2, 12, 0.8],
+        'line-opacity': 0.6,
+      },
+    },
+
+    // Country borders
     {
       id: 'boundary-country',
       type: 'line',
@@ -67,13 +131,13 @@ const DARK_STYLE: StyleSpecification = {
       'source-layer': 'boundary',
       filter: ['all', ['==', ['get', 'admin_level'], 2], ['!=', ['get', 'maritime'], 1]],
       paint: {
-        'line-color': '#3a3a48',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.4, 6, 0.9, 10, 1.2],
-        'line-opacity': 0.7,
+        'line-color': '#4a4a58',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.5, 6, 1.1, 10, 1.6],
+        'line-opacity': 0.85,
       },
     },
 
-    // State/province lines — even thinner
+    // Province / state lines — solid, more legible
     {
       id: 'boundary-state',
       type: 'line',
@@ -82,10 +146,9 @@ const DARK_STYLE: StyleSpecification = {
       filter: ['all', ['==', ['get', 'admin_level'], 4], ['!=', ['get', 'maritime'], 1]],
       minzoom: 4,
       paint: {
-        'line-color': '#2a2a34',
-        'line-width': 0.5,
-        'line-opacity': 0.6,
-        'line-dasharray': [2, 2],
+        'line-color': '#3a3a44',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.3, 6, 0.6, 10, 1],
+        'line-opacity': 0.75,
       },
     },
 
@@ -112,13 +175,17 @@ const DARK_STYLE: StyleSpecification = {
       },
     },
 
-    // Cities — all of them, dim
+    // Cities outside Turkey — dim
     {
-      id: 'place-city',
+      id: 'place-city-other',
       type: 'symbol',
       source: 'ofm',
       'source-layer': 'place',
-      filter: ['in', ['get', 'class'], ['literal', ['city']]],
+      filter: [
+        'all',
+        ['==', ['get', 'class'], 'city'],
+        ['!=', ['get', 'iso_a2'], 'TR'],
+      ],
       minzoom: 3,
       layout: {
         'text-field': ['coalesce', ['get', 'name:latin'], ['get', 'name']],
@@ -128,27 +195,81 @@ const DARK_STYLE: StyleSpecification = {
         'text-max-width': 8,
       },
       paint: {
-        'text-color': '#9a9aaa',
+        'text-color': '#7a7a88',
         'text-halo-color': '#0a0a12',
         'text-halo-width': 1.2,
       },
     },
 
-    // Towns — smaller, higher zoom only
+    // Cities IN Turkey — brighter, weight on these
     {
-      id: 'place-town',
+      id: 'place-city-tr',
       type: 'symbol',
       source: 'ofm',
       'source-layer': 'place',
-      filter: ['==', ['get', 'class'], 'town'],
+      filter: [
+        'all',
+        ['==', ['get', 'class'], 'city'],
+        ['==', ['get', 'iso_a2'], 'TR'],
+      ],
+      minzoom: 3,
+      layout: {
+        'text-field': ['coalesce', ['get', 'name:latin'], ['get', 'name']],
+        'text-font': ['Noto Sans Bold'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 3, 11, 8, 15],
+        'text-letter-spacing': 0.04,
+        'text-max-width': 8,
+      },
+      paint: {
+        'text-color': '#e6e6ea',
+        'text-halo-color': '#05050a',
+        'text-halo-width': 1.6,
+      },
+    },
+
+    // Towns in Turkey — visible at moderate zoom
+    {
+      id: 'place-town-tr',
+      type: 'symbol',
+      source: 'ofm',
+      'source-layer': 'place',
+      filter: [
+        'all',
+        ['==', ['get', 'class'], 'town'],
+        ['==', ['get', 'iso_a2'], 'TR'],
+      ],
       minzoom: 5,
       layout: {
         'text-field': ['coalesce', ['get', 'name:latin'], ['get', 'name']],
         'text-font': ['Noto Sans Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 10, 12],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 10, 10, 13],
       },
       paint: {
-        'text-color': '#6a6a7a',
+        'text-color': '#b8b8c4',
+        'text-halo-color': '#05050a',
+        'text-halo-width': 1.4,
+      },
+    },
+
+    // Towns elsewhere — only at high zoom
+    {
+      id: 'place-town-other',
+      type: 'symbol',
+      source: 'ofm',
+      'source-layer': 'place',
+      filter: [
+        'all',
+        ['==', ['get', 'class'], 'town'],
+        ['!=', ['get', 'iso_a2'], 'TR'],
+      ],
+      minzoom: 6,
+      layout: {
+        'text-field': ['coalesce', ['get', 'name:latin'], ['get', 'name']],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 6, 9, 10, 12],
+      },
+      paint: {
+        'text-color': '#5e5e6c',
         'text-halo-color': '#0a0a12',
         'text-halo-width': 1,
       },
