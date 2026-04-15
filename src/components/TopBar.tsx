@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { formatTRDate, formatTRTimeWithSec } from '@/lib/datetime';
 
 interface TopBarProps {
   loading: boolean;
@@ -15,10 +16,7 @@ export default function TopBar({ loading, eventCount, onAbout }: TopBarProps) {
   useEffect(() => {
     const tick = () => {
       const d = new Date();
-      setNow(
-        `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')} ` +
-          `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')} UTC`
-      );
+      setNow(`${formatTRDate(d)} · ${formatTRTimeWithSec(d)} TRT`);
     };
     tick();
     const id = setInterval(tick, 1000);

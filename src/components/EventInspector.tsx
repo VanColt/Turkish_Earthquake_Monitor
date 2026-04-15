@@ -1,7 +1,8 @@
 'use client';
 
 import type { Earthquake } from '@/services/earthquakeService';
-import { relativeTime, magnitudeLabel, magnitudeTier } from '@/lib/magnitude';
+import { magnitudeLabel, magnitudeTier } from '@/lib/magnitude';
+import { formatTRDate, formatTRTimeWithSec, relativeTimeTR } from '@/lib/datetime';
 
 interface EventInspectorProps {
   earthquake: Earthquake | null;
@@ -49,29 +50,45 @@ export default function EventInspector({ earthquake, onClose }: EventInspectorPr
 
       {/* Hero */}
       <div className="flex items-start gap-4 px-4 py-4 border-b border-line">
-        <div className="flex flex-col items-start">
+        <div className="flex flex-col items-start shrink-0">
           <div
             className="mono tabular-nums leading-none"
             style={{ color, fontSize: 56, fontWeight: 500 }}
           >
             {earthquake.mag.toFixed(1)}
           </div>
-          <div className="display tracked text-[9px] mt-1" style={{ color }}>
+          <div className="display tracked text-[9px] mt-1.5" style={{ color }}>
             {magnitudeLabel(earthquake.mag).toUpperCase()}
           </div>
         </div>
         <div className="flex-1 min-w-0">
           <div className="display tracked text-[9px] text-ink-3">EPICENTER</div>
-          <div className="text-[14px] text-ink mt-1 break-words">{earthquake.title}</div>
-          <div className="mono text-[10px] text-ink-2 mt-2">
-            {relativeTime(earthquake.date_time)}
+          <div className="text-[14px] text-ink mt-1 break-words leading-snug">
+            {earthquake.title}
           </div>
-          <div className="mono text-[10px] text-ink-3">{earthquake.date_time}</div>
+          <div className="mono text-[10px] text-ink-2 mt-2">
+            {relativeTimeTR(earthquake.date_time)}
+          </div>
         </div>
       </div>
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto">
+        {/* Local time block — full date + clock */}
+        <div className="px-4 py-3 border-b border-line">
+          <div className="display tracked text-[9px] text-ink-3 mb-1.5">
+            LOCAL TIME · TÜRKİYE
+          </div>
+          <div className="flex items-baseline gap-3">
+            <span className="mono tabular-nums text-[16px] text-ink">
+              {formatTRTimeWithSec(earthquake.date_time)}
+            </span>
+            <span className="mono tabular-nums text-[12px] text-ink-1">
+              {formatTRDate(earthquake.date_time)}
+            </span>
+          </div>
+        </div>
+
         {/* Telemetry grid */}
         <div className="grid grid-cols-2 gap-px bg-line">
           <Field label="Depth" value={`${earthquake.depth.toFixed(1)} km`} />
@@ -84,7 +101,11 @@ export default function EventInspector({ earthquake, onClose }: EventInspectorPr
             label="Region"
             value={earthquake.location_properties?.epiCenter?.name ?? '—'}
           />
-          <Field label="TZ" value={earthquake.location_tz ?? '—'} small />
+          <Field
+            label="Source"
+            value={earthquake.provider?.toUpperCase() ?? 'KANDILLI'}
+            small
+          />
         </div>
 
         {/* Closest cities */}
