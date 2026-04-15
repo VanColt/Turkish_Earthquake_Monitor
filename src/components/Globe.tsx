@@ -16,7 +16,7 @@ const TURKEY_CENTER: [number, number] = [35.0, 39.0];
 // dependency-free while supporting globe projection in MapLibre v5+.
 const DARK_STYLE: StyleSpecification = {
   version: 8,
-  glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+  projection: { type: 'globe' },
   sources: {
     basemap: {
       type: 'raster',
@@ -28,23 +28,16 @@ const DARK_STYLE: StyleSpecification = {
       tileSize: 256,
       attribution: '© OpenStreetMap · © CARTO',
     },
-    labels: {
-      type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
-        'https://b.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
-      ],
-      tileSize: 256,
-    },
   },
-  projection: { type: 'globe' },
   sky: {
-    'sky-color': '#0a0a12',
-    'horizon-color': '#1a1420',
-    'fog-color': '#0a0a12',
-    'fog-ground-blend': 0.4,
-    'horizon-fog-blend': 0.6,
-    'sky-horizon-blend': 0.8,
+    'atmosphere-blend': [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      0, 0.8,
+      5, 0.4,
+      8, 0,
+    ],
   },
   layers: [
     {
@@ -56,14 +49,7 @@ const DARK_STYLE: StyleSpecification = {
       id: 'basemap',
       type: 'raster',
       source: 'basemap',
-      paint: { 'raster-opacity': 0.9, 'raster-saturation': -0.2 },
-    },
-    {
-      id: 'labels',
-      type: 'raster',
-      source: 'labels',
-      minzoom: 2,
-      paint: { 'raster-opacity': 0.7 },
+      paint: { 'raster-opacity': 0.85, 'raster-saturation': -0.25 },
     },
   ],
 };
@@ -114,6 +100,10 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
     mapRef.current = map;
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
+
+    map.on('error', (e) => {
+      console.error('[globe] maplibre error:', e.error ?? e);
+    });
 
     map.on('load', () => {
       // Source + layers for earthquakes
