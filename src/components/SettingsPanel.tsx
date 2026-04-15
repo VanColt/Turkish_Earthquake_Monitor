@@ -66,6 +66,18 @@ export default function SettingsPanel({ settings, onChange }: SettingsPanelProps
         />
       </Section>
 
+      {/* Geological overlays */}
+      <Section
+        label="Geology"
+        help="Active fault lines from the GEM Global Active Faults Database (NAF and EAF visible across Türkiye)."
+      >
+        <Toggle
+          label="Active fault lines"
+          on={settings.showFaults}
+          onChange={(on) => update('showFaults', on)}
+        />
+      </Section>
+
       {/* Reset */}
       <button
         onClick={() => onChange(DEFAULT_SETTINGS)}

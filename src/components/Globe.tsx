@@ -408,6 +408,36 @@ export default function Globe({
     });
 
     map.on('load', () => {
+      // Active fault lines — GEM Global Active Faults DB filtered to Türkiye region.
+      map.addSource('faults', { type: 'geojson', data: '/faults.geojson' });
+
+      // Soft glow under the fault line so it reads against dark land
+      map.addLayer({
+        id: 'faults-glow',
+        type: 'line',
+        source: 'faults',
+        layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#e84545',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 2, 7, 6, 12, 14],
+          'line-opacity': 0.18,
+          'line-blur': 4,
+        },
+      });
+
+      // Crisp inner stroke
+      map.addLayer({
+        id: 'faults-line',
+        type: 'line',
+        source: 'faults',
+        layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#f5cf5a',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 0.5, 7, 1.2, 12, 2.4],
+          'line-opacity': 0.85,
+        },
+      });
+
       // World country polygons — gives us per-country color control.
       // Features use ISO-3 codes as `id` (e.g. "TUR"), `properties.name` is the country name.
       map.addSource('countries', {
@@ -701,6 +731,7 @@ export default function Globe({
       );
       ['road-major', 'road-minor'].forEach((id) => setVis(id, settings.showHighways));
       setVis('boundary-state', settings.showProvinces);
+      ['faults-glow', 'faults-line'].forEach((id) => setVis(id, settings.showFaults));
     };
 
     if (map.isStyleLoaded()) apply();

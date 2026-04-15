@@ -1,8 +1,16 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import type { Earthquake } from '@/services/earthquakeService';
 import { magnitudeLabel, magnitudeTier } from '@/lib/magnitude';
 import { formatTRDate, formatTRTimeWithSec, relativeTimeTR } from '@/lib/datetime';
+import {
+  fetchWeather,
+  describeWeather,
+  weatherGlyph,
+  WeatherResult,
+  WeatherSnapshot,
+} from '@/lib/weather';
 
 interface EventInspectorProps {
   earthquake: Earthquake | null;
@@ -17,6 +25,31 @@ const TIER_COLOR: Record<string, string> = {
 };
 
 export default function EventInspector({ earthquake, onClose }: EventInspectorProps) {
+  const [weather, setWeather] = useState<WeatherResult | null>(null);
+  const [weatherErr, setWeatherErr] = useState(false);
+
+  useEffect(() => {
+    if (!earthquake) {
+      setWeather(null);
+      return;
+    }
+    let cancelled = false;
+    setWeather(null);
+    setWeatherErr(false);
+    const [lng, lat] = earthquake.geojson.coordinates;
+    fetchWeather(lat, lng, earthquake.date_time)
+      .then((res) => {
+        if (!cancelled) setWeather(res);
+      })
+      .catch((err) => {
+        console.error('weather fetch failed', err);
+        if (!cancelled) setWeatherErr(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [earthquake]);
+
   if (!earthquake) return null;
 
   const tier = magnitudeTier(earthquake.mag);
@@ -108,6 +141,25 @@ export default function EventInspector({ earthquake, onClose }: EventInspectorPr
           />
         </div>
 
+        {/* Weather */}
+        <div className="px-4 py-4 border-t border-line">
+          <div className="display tracked text-[9px] text-ink-3 mb-3">
+            WEATHER · AT EPICENTER
+          </div>
+          {weatherErr && (
+            <div className="mono text-[10px] text-ink-3">Weather unavailable</div>
+          )}
+          {!weatherErr && !weather && (
+            <div className="mono text-[10px] text-ink-3">Loading…</div>
+          )}
+          {weather && (
+            <div className="flex flex-col gap-3">
+              <WeatherRow label="At event" snap={weather.atEvent} />
+              <WeatherRow label="Now" snap={weather.now} />
+            </div>
+          )}
+        </div>
+
         {/* Closest cities */}
         {cities.length > 0 && (
           <div className="px-4 py-4 border-t border-line">
@@ -162,6 +214,40 @@ export default function EventInspector({ earthquake, onClose }: EventInspectorPr
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function WeatherRow({ label, snap }: { label: string; snap: WeatherSnapshot | null }) {
+  if (!snap) {
+    return (
+      <div className="flex items-center gap-3">
+        <span className="display tracked text-[9px] text-ink-3 w-14">{label.toUpperCase()}</span>
+        <span className="mono text-[10px] text-ink-3">no data</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-3">
+      <span className="display tracked text-[9px] text-ink-3 w-14 shrink-0">
+        {label.toUpperCase()}
+      </span>
+      <span className="text-[16px] leading-none w-5 text-center">{weatherGlyph(snap.weatherCode)}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2">
+          <span className="mono tabular-nums text-[14px] text-ink">
+            {Math.round(snap.temperature)}°C
+          </span>
+          <span className="text-[11px] text-ink-1 truncate">
+            {describeWeather(snap.weatherCode)}
+          </span>
+        </div>
+        <div className="mono text-[10px] text-ink-3 mt-0.5 flex gap-3">
+          <span>{Math.round(snap.windSpeed)} km/h</span>
+          <span>{snap.humidity}% RH</span>
+          {snap.precipitation > 0 && <span>{snap.precipitation.toFixed(1)} mm</span>}
+        </div>
       </div>
     </div>
   );

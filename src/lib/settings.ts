@@ -6,6 +6,7 @@ export interface Settings {
   showLabels: boolean;
   showHighways: boolean;
   showProvinces: boolean;
+  showFaults: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -14,4 +15,5 @@ export const DEFAULT_SETTINGS: Settings = {
   showLabels: true,
   showHighways: true,
   showProvinces: true,
+  showFaults: false,
 };
