@@ -67,10 +67,18 @@ body {
 .display {
   font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0.02em;
+  font-weight: 500;
 }
 
 .tracked {
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+}
+
+.hero {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 /* Scrollbars — thin amber on hover */

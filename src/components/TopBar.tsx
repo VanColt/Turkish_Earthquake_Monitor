@@ -28,21 +28,21 @@ export default function TopBar({ loading, eventCount, onAbout }: TopBarProps) {
   return (
     <div className="pointer-events-none absolute top-0 left-0 right-0 z-30 flex items-start justify-between p-4">
       {/* Left: logo + mission name */}
-      <div className="glass pointer-events-auto flex items-center gap-3 px-3 py-2">
+      <div className="glass pointer-events-auto flex items-center gap-3 px-4 py-2.5">
         <Image
           src="/tr.png"
           alt="TR"
-          width={28}
-          height={28}
+          width={32}
+          height={32}
           style={{ filter: 'brightness(0) invert(1)', opacity: 0.95 }}
           priority
         />
-        <div className="flex flex-col">
-          <div className="display tracked text-[13px] font-semibold text-ink leading-none">
+        <div className="flex flex-col leading-tight">
+          <div className="hero tracked text-[18px] text-ink leading-none">
             KANDILLI
           </div>
-          <div className="display tracked text-[9px] text-ink-2 leading-none mt-1">
-            ORBITAL SEISMIC MONITOR · TR
+          <div className="display tracked text-[10px] text-ink-2 leading-none mt-1.5">
+            SEISMIC MONITOR · TÜRKİYE
           </div>
         </div>
       </div>
@@ -51,19 +51,21 @@ export default function TopBar({ loading, eventCount, onAbout }: TopBarProps) {
       <div className="glass pointer-events-auto hidden md:flex items-center gap-5 px-4 py-2">
         <div className="flex items-center gap-2">
           <span
-            className={`inline-block w-1.5 h-1.5 rounded-full ${loading ? 'sig-pulse' : ''}`}
+            className={`inline-block w-2 h-2 rounded-full ${loading ? 'sig-pulse' : ''}`}
             style={{ background: 'var(--sig)' }}
           />
-          <span className="display tracked text-[10px] text-sig">
+          <span className="display tracked text-[11px] text-sig font-semibold">
             {loading ? 'SYNCING' : 'LIVE'}
           </span>
         </div>
-        <div className="h-4 w-px bg-line" />
-        <div className="mono text-[11px] text-ink-1">{now}</div>
-        <div className="h-4 w-px bg-line" />
-        <div className="flex items-baseline gap-1.5">
-          <span className="mono tabular-nums text-[13px] text-ink">{eventCount}</span>
-          <span className="display tracked text-[9px] text-ink-2">EVENTS / 24H</span>
+        <div className="h-5 w-px bg-line" />
+        <div className="mono text-[12px] text-ink-1">{now}</div>
+        <div className="h-5 w-px bg-line" />
+        <div className="flex items-baseline gap-2">
+          <span className="mono tabular-nums text-[16px] text-ink font-medium">
+            {eventCount}
+          </span>
+          <span className="display tracked text-[10px] text-ink-2">EVENTS · 24H</span>
         </div>
       </div>
 

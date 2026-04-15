@@ -33,9 +33,9 @@ export default function EventInspector({ earthquake, onClose }: EventInspectorPr
       <span className="reticle br" />
 
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="display tracked text-[10px] text-sig">INSPECTOR</span>
+          <span className="hero tracked text-[13px] text-sig">INSPECTOR</span>
           <span className="mono text-[10px] text-ink-3">{earthquake.earthquake_id}</span>
         </div>
         <button

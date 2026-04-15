@@ -39,15 +39,15 @@ export default function EventFeed({ earthquakes, selected, onSelect }: EventFeed
   return (
     <div className="flex flex-col h-full glass-strong relative">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
+      <div className="flex items-center justify-between border-b border-line px-3 py-3">
         <div className="flex items-center gap-2">
           <span
-            className="inline-block w-1 h-1 rounded-full sig-pulse"
+            className="inline-block w-1.5 h-1.5 rounded-full sig-pulse"
             style={{ background: 'var(--sig)' }}
           />
-          <span className="display tracked text-[10px] text-ink">EVENT FEED</span>
+          <span className="hero tracked text-[13px] text-ink">EVENT FEED</span>
         </div>
-        <span className="mono text-[10px] text-ink-2">{sorted.length}</span>
+        <span className="mono tabular-nums text-[12px] text-ink-1">{sorted.length}</span>
       </div>
 
       {/* Controls */}
