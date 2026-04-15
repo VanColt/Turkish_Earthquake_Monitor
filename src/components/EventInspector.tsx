@@ -165,11 +165,11 @@ export default function EventInspector({ earthquake, onClose }: EventInspectorPr
           <div className="px-4 py-4 border-t border-line">
             <div className="display tracked text-[9px] text-ink-3 mb-3">PROXIMAL CITIES</div>
             <div className="flex flex-col gap-2">
-              {cities.map((c) => {
+              {cities.map((c, i) => {
                 const km = c.distance / 1000;
                 const pct = Math.max(6, Math.min(100, (km / maxKm) * 100));
                 return (
-                  <div key={c.cityCode} className="flex items-center gap-3">
+                  <div key={`${c.cityCode}-${i}`} className="flex items-center gap-3">
                     <span className="w-24 text-[11px] text-ink truncate">{c.name}</span>
                     <div className="flex-1 h-[3px]" style={{ background: 'var(--panel-2)' }}>
                       <div
@@ -197,8 +197,8 @@ export default function EventInspector({ earthquake, onClose }: EventInspectorPr
           <div className="px-4 py-4 border-t border-line">
             <div className="display tracked text-[9px] text-ink-3 mb-3">NEAREST AIRPORTS</div>
             <div className="flex flex-col gap-2">
-              {airports.map((a) => (
-                <div key={a.code} className="flex items-center gap-3">
+              {airports.map((a, i) => (
+                <div key={`${a.code}-${i}`} className="flex items-center gap-3">
                   <span
                     className="mono text-[10px] px-1.5 py-0.5 border"
                     style={{ borderColor: 'var(--line-strong)', color: 'var(--sig)' }}
