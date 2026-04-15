@@ -200,7 +200,7 @@ body {
 }
 .maplibregl-ctrl-group button {
   background: transparent !important;
-  color: var(--ink-1) !important;
+  color: var(--ink-2) !important;
   width: 32px !important;
   height: 32px !important;
   display: flex !important;
