@@ -448,70 +448,78 @@ export default function Globe({
         6, '#e84545',
       ];
 
-      // "Felt-shaking" heatmap. Tuned for visibility against dark vector
-      // basemap with the typical M2-M3-dominated Turkish daily activity.
+      // "Felt-shaking" heatmap.
+      // Weight curve keeps small events dim; only M5+ or dense clusters
+      // push density into the orange/red bands. Radius still reflects
+      // realistic felt-distance per magnitude.
       map.addLayer({
         id: 'quakes-heat',
         type: 'heatmap',
         source: 'quakes',
         layout: { visibility: 'none' },
         paint: {
+          // Aggressive curve — M2 barely registers, M5+ dominates.
           'heatmap-weight': [
-            'interpolate', ['linear'], ['get', 'mag'],
-            0, 0.6,
-            2, 1.0,
-            3, 1.6,
-            4, 2.4,
-            5, 3.2,
-            6, 4.0,
-            7, 5.0,
+            'interpolate', ['exponential', 1.8], ['get', 'mag'],
+            0, 0.05,
+            2, 0.15,
+            3, 0.35,
+            4, 0.80,
+            5, 1.8,
+            6, 3.5,
+            7, 6.0,
           ],
           'heatmap-radius': [
             'interpolate', ['exponential', 2], ['zoom'],
             3, [
               'interpolate', ['linear'], ['get', 'mag'],
-              2, 14,
-              3, 22,
-              4, 36,
-              5, 60,
-              6, 100,
-              7, 180,
+              2, 10,
+              3, 16,
+              4, 28,
+              5, 48,
+              6, 80,
+              7, 150,
             ],
             6, [
               'interpolate', ['linear'], ['get', 'mag'],
-              2, 36,
-              3, 60,
-              4, 100,
-              5, 170,
-              6, 300,
-              7, 540,
+              2, 28,
+              3, 46,
+              4, 80,
+              5, 140,
+              6, 240,
+              7, 440,
             ],
             10, [
               'interpolate', ['linear'], ['get', 'mag'],
-              2, 80,
-              3, 130,
-              4, 220,
-              5, 380,
-              6, 680,
-              7, 1200,
+              2, 64,
+              3, 100,
+              4, 180,
+              5, 320,
+              6, 560,
+              7, 1000,
             ],
           ],
           'heatmap-intensity': [
             'interpolate', ['linear'], ['zoom'],
-            0, 2, 4, 3, 8, 4, 12, 5,
+            0, 0.8, 4, 1.2, 8, 1.8, 12, 2.4,
           ],
-          // Visible from the smallest sliver of density.
+          // MMI-tier color ramp.
+          //   transparent (not felt)
+          //   cool-mint (perceptible, MMI II–III) — should be the dominant color
+          //   amber (light, IV–V)
+          //   orange (moderate, VI) — only at clustered M4+ overlap or M5 events
+          //   red (strong/damaging, VII+) — only at M5+ centers or M6+ anywhere
           'heatmap-color': [
             'interpolate', ['linear'], ['heatmap-density'],
             0,    'rgba(0, 0, 0, 0)',
-            0.01, 'rgba(95, 216, 184, 0.55)',
-            0.1,  'rgba(95, 216, 184, 0.80)',
-            0.25, 'rgba(245, 207, 90, 0.88)',
-            0.5,  'rgba(244, 138, 58, 0.92)',
-            0.8,  'rgba(232, 69, 69, 0.96)',
-            1,    'rgba(232, 69, 69, 1)',
+            0.05, 'rgba(95, 216, 184, 0.45)',
+            0.25, 'rgba(95, 216, 184, 0.75)',
+            0.50, 'rgba(245, 207, 90, 0.85)',
+            0.72, 'rgba(244, 138, 58, 0.92)',
+            0.88, 'rgba(232, 69, 69, 0.96)',
+            1.0,  'rgba(180, 30, 30, 1)',
           ],
-          'heatmap-opacity': 1,
+          'heatmap-opacity': 0.95,
         },
       });
 
