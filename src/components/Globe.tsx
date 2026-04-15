@@ -96,10 +96,19 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
       bearing: 0,
       attributionControl: false,
       renderWorldCopies: false,
+      // Keep the globe north-up; disable user rotation.
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchZoomRotate: true,
     });
+    // Explicitly disable rotation on the touch-zoom-rotate handler.
+    map.touchZoomRotate.disableRotation();
     mapRef.current = map;
 
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
+    map.addControl(
+      new maplibregl.NavigationControl({ showCompass: false, visualizePitch: false }),
+      'top-right'
+    );
 
     map.on('error', (e) => {
       console.error('[globe] maplibre error:', e.error ?? e);
@@ -215,11 +224,17 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
       map.on('click', 'quakes-core', onClick);
       map.on('click', 'quakes-ring', onClick);
 
-      // Auto-rotation while idle
+      // Auto-rotation while idle — spin the longitude so the globe
+      // rotates on its real axis (north stays up), like a classroom globe.
       const idleSpin = () => {
         if (interactingRef.current) return;
-        const b = map.getBearing();
-        map.easeTo({ bearing: b + 0.25, duration: 1000, easing: (t) => t });
+        const { lng, lat } = map.getCenter();
+        map.easeTo({
+          center: [lng + 0.25, lat],
+          bearing: 0,
+          duration: 1000,
+          easing: (t) => t,
+        });
       };
       spinRef.current = window.setInterval(idleSpin, 1000);
 
@@ -240,7 +255,7 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
 
       // Initial gentle fly-in to Turkey
       setTimeout(() => {
-        map.flyTo({ center: TURKEY_CENTER, zoom: 4.2, duration: 2600, pitch: 20 });
+        map.flyTo({ center: TURKEY_CENTER, zoom: 4.2, duration: 2600, pitch: 20, bearing: 0 });
       }, 400);
     });
 
@@ -279,7 +294,7 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
     if (!map || !selected) return;
     const [lng, lat] = selected.geojson.coordinates;
     interactingRef.current = true;
-    map.flyTo({ center: [lng, lat], zoom: 7, duration: 1600, pitch: 35 });
+    map.flyTo({ center: [lng, lat], zoom: 7, duration: 1600, pitch: 35, bearing: 0 });
     window.setTimeout(() => {
       interactingRef.current = false;
     }, 8000);
