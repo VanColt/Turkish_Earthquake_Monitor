@@ -221,24 +221,19 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
         generateId: false,
       });
 
-      // Per-country land fill. Rendered BELOW the water layer so that
-      // the basemap's water/coastlines clip the polygon precisely — this
-      // makes per-country color look native instead of overlay-painted.
+      // Türkiye-only translucent wash. Sits below water so the sea clips
+      // it cleanly. White at very low opacity lets the basemap detail
+      // (landcover, borders, labels) read through while still lifting TR
+      // off the rest of the world.
       map.addLayer(
         {
           id: 'country-fill',
           type: 'fill',
           source: 'countries',
+          filter: ['==', ['get', 'name'], 'Turkey'],
           paint: {
-            'fill-color': [
-              'match',
-              ['get', 'name'],
-              'Turkey', '#2a2a36',
-              ['Cyprus', 'Greece', 'Bulgaria', 'Georgia', 'Armenia', 'Azerbaijan', 'Iran', 'Iraq', 'Syria'],
-              '#1d1d26',
-              /* rest of world */ '#16161e',
-            ],
-            'fill-opacity': 1,
+            'fill-color': '#ffffff',
+            'fill-opacity': 0.06,
           },
         },
         'water'
