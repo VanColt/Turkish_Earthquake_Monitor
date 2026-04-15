@@ -448,77 +448,70 @@ export default function Globe({
         6, '#e84545',
       ];
 
-      // "Felt-shaking" heatmap.
-      // Each event contributes a soft zone whose radius scales with magnitude
-      // (proxy for felt-distance) and weight scales with magnitude (so big
-      // events still dominate). When zones overlap, MapLibre sums densities,
-      // producing brighter regions where activity has clustered.
+      // "Felt-shaking" heatmap. Tuned for visibility against dark vector
+      // basemap with the typical M2-M3-dominated Turkish daily activity.
       map.addLayer({
         id: 'quakes-heat',
         type: 'heatmap',
         source: 'quakes',
         layout: { visibility: 'none' },
         paint: {
-          // Curved weight — every event registers, but bigger events are
-          // dramatically more influential.
           'heatmap-weight': [
             'interpolate', ['linear'], ['get', 'mag'],
-            0, 0.25,
-            2, 0.45,
-            3, 0.70,
-            4, 1.0,
-            5, 1.6,
-            6, 2.4,
-            7, 3.2,
+            0, 0.6,
+            2, 1.0,
+            3, 1.6,
+            4, 2.4,
+            5, 3.2,
+            6, 4.0,
+            7, 5.0,
           ],
-          // Per-feature radius scaled by magnitude × zoom.
           'heatmap-radius': [
             'interpolate', ['exponential', 2], ['zoom'],
             3, [
               'interpolate', ['linear'], ['get', 'mag'],
-              2, 6,
-              3, 12,
-              4, 22,
-              5, 40,
-              6, 70,
-              7, 130,
+              2, 14,
+              3, 22,
+              4, 36,
+              5, 60,
+              6, 100,
+              7, 180,
             ],
             6, [
               'interpolate', ['linear'], ['get', 'mag'],
-              2, 18,
-              3, 32,
-              4, 60,
-              5, 110,
-              6, 200,
-              7, 380,
+              2, 36,
+              3, 60,
+              4, 100,
+              5, 170,
+              6, 300,
+              7, 540,
             ],
             10, [
               'interpolate', ['linear'], ['get', 'mag'],
-              2, 40,
-              3, 75,
-              4, 140,
-              5, 260,
-              6, 480,
-              7, 920,
+              2, 80,
+              3, 130,
+              4, 220,
+              5, 380,
+              6, 680,
+              7, 1200,
             ],
           ],
           'heatmap-intensity': [
             'interpolate', ['linear'], ['zoom'],
-            0, 1, 4, 1.4, 8, 2.0, 12, 2.8,
+            0, 2, 4, 3, 8, 4, 12, 5,
           ],
-          // Density → MMI-style color ramp. Visible from the very first
-          // bit of density so single events still show up.
+          // Visible from the smallest sliver of density.
           'heatmap-color': [
             'interpolate', ['linear'], ['heatmap-density'],
             0,    'rgba(0, 0, 0, 0)',
-            0.02, 'rgba(95, 216, 184, 0.45)',
-            0.15, 'rgba(95, 216, 184, 0.70)',
-            0.35, 'rgba(245, 207, 90, 0.80)',
-            0.55, 'rgba(244, 138, 58, 0.88)',
-            0.80, 'rgba(232, 69, 69, 0.92)',
+            0.01, 'rgba(95, 216, 184, 0.55)',
+            0.1,  'rgba(95, 216, 184, 0.80)',
+            0.25, 'rgba(245, 207, 90, 0.88)',
+            0.5,  'rgba(244, 138, 58, 0.92)',
+            0.8,  'rgba(232, 69, 69, 0.96)',
             1,    'rgba(232, 69, 69, 1)',
           ],
-          'heatmap-opacity': 0.95,
+          'heatmap-opacity': 1,
         },
       });
 
