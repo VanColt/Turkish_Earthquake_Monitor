@@ -7,7 +7,6 @@ import { ConfigProvider, theme, Modal } from 'antd';
 import TopBar from '@/components/TopBar';
 import EventFeed from '@/components/EventFeed';
 import EventInspector from '@/components/EventInspector';
-import StatusBar from '@/components/StatusBar';
 
 import {
   Earthquake,
@@ -40,6 +39,7 @@ export default function Home() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [metadata, setMetadata] = useState<EarthquakeResponse['metadata'] | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [feedVisible, setFeedVisible] = useState(true);
   const { msg, show } = useToast();
 
@@ -127,7 +127,12 @@ export default function Home() {
     >
       <div className="fixed inset-0 overflow-hidden" style={{ background: 'var(--void)' }}>
         {/* Globe — full bleed */}
-        <Globe earthquakes={earthquakes} selected={selected} onSelect={setSelected} />
+        <Globe
+          earthquakes={earthquakes}
+          selected={selected}
+          onSelect={setSelected}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
 
         {/* Reticles on the viewport corners */}
         <span className="reticle tl" style={{ top: 12, left: 12 }} />
@@ -144,7 +149,7 @@ export default function Home() {
 
         {/* Left rail — event feed */}
         {feedVisible && (
-          <div className="absolute left-4 top-24 bottom-20 z-20 w-[340px] hidden md:flex">
+          <div className="absolute left-4 top-24 bottom-4 z-20 w-[340px] hidden md:flex">
             <EventFeed
               earthquakes={earthquakes}
               selected={selected}
@@ -153,15 +158,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* Right rail — inspector */}
+        {/* Right rail — inspector. Right offset clears the bottom-right control stack. */}
         {selected && (
-          <div className="absolute right-4 top-24 bottom-20 z-20 w-[380px] hidden md:flex flex-col">
+          <div className="absolute right-4 top-24 bottom-32 z-20 w-[380px] hidden md:flex flex-col">
             <EventInspector earthquake={selected} onClose={() => setSelected(null)} />
           </div>
         )}
-
-        {/* Status bar */}
-        <StatusBar earthquakes={earthquakes} lastUpdated={lastUpdated} />
 
         {/* Feed toggle button (visible when feed is hidden, desktop only) */}
         {!feedVisible && (
@@ -193,6 +195,20 @@ export default function Home() {
             <EventInspector earthquake={selected} onClose={() => setSelected(null)} />
           </div>
         )}
+
+        {/* Settings modal — placeholder, content TBD */}
+        <Modal
+          title="VIEW SETTINGS"
+          open={settingsOpen}
+          onCancel={() => setSettingsOpen(false)}
+          footer={null}
+          width={420}
+        >
+          <div className="text-[12px] text-ink-2 mono leading-relaxed">
+            Settings will live here — magnitude filter defaults, marker style,
+            label density, color palette, etc. We&rsquo;ll wire these up next.
+          </div>
+        </Modal>
 
         {/* About modal */}
         <Modal

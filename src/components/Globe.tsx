@@ -12,7 +12,53 @@ interface GlobeProps {
   earthquakes: Earthquake[];
   selected: Earthquake | null;
   onSelect: (eq: Earthquake) => void;
+  onOpenSettings?: () => void;
 }
+
+// Custom MapLibre control: a single button. We use it for the "view settings"
+// button so it stacks visually with the NavigationControl and inherits its
+// styling (background, border, hover state from globals.css).
+class IconButtonControl implements maplibregl.IControl {
+  private container!: HTMLElement;
+  private btn!: HTMLButtonElement;
+
+  constructor(
+    private readonly opts: { svg: string; title: string; onClick: () => void }
+  ) {}
+
+  onAdd(): HTMLElement {
+    this.container = document.createElement('div');
+    this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    this.btn = document.createElement('button');
+    this.btn.type = 'button';
+    this.btn.title = this.opts.title;
+    this.btn.setAttribute('aria-label', this.opts.title);
+    this.btn.innerHTML = this.opts.svg;
+    this.btn.addEventListener('click', this.opts.onClick);
+    this.container.appendChild(this.btn);
+    return this.container;
+  }
+
+  setHandler(onClick: () => void) {
+    this.opts.onClick = onClick;
+  }
+
+  onRemove() {
+    this.btn.removeEventListener('click', this.opts.onClick);
+    this.container.remove();
+  }
+}
+
+const SETTINGS_SVG = `
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="3" y1="4" x2="13" y2="4" />
+    <line x1="3" y1="8" x2="13" y2="8" />
+    <line x1="3" y1="12" x2="13" y2="12" />
+    <circle cx="6" cy="4" r="1.4" fill="currentColor" />
+    <circle cx="10" cy="8" r="1.4" fill="currentColor" />
+    <circle cx="6" cy="12" r="1.4" fill="currentColor" />
+  </svg>
+`;
 
 // Tight bounding box around Türkiye — used for the landing view.
 const TURKEY_BOUNDS: LngLatBoundsLike = [
@@ -295,14 +341,27 @@ function toGeoJSON(earthquakes: Earthquake[], latestId: string | null) {
   };
 }
 
-export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
+export default function Globe({
+  earthquakes,
+  selected,
+  onSelect,
+  onOpenSettings,
+}: GlobeProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const earthquakesRef = useRef<Earthquake[]>(earthquakes);
+  const settingsControlRef = useRef<IconButtonControl | null>(null);
+  const settingsHandlerRef = useRef<(() => void) | null>(onOpenSettings ?? null);
 
   useEffect(() => {
     earthquakesRef.current = earthquakes;
   }, [earthquakes]);
+
+  // Keep the latest settings handler reachable from inside the control.
+  useEffect(() => {
+    settingsHandlerRef.current = onOpenSettings ?? null;
+    settingsControlRef.current?.setHandler(() => settingsHandlerRef.current?.());
+  }, [onOpenSettings]);
 
   // Map initialization — runs once
   useEffect(() => {
@@ -325,10 +384,19 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
     map.touchZoomRotate.disableRotation();
     mapRef.current = map;
 
+    // Bottom-right stack: zoom controls first (closest to corner), then
+    // settings button stacked above them.
     map.addControl(
-      new maplibregl.NavigationControl({ showCompass: false, visualizePitch: false }),
-      'top-right'
+      new maplibregl.NavigationControl({ showCompass: false, visualizePitch: false, showZoom: true }),
+      'bottom-right'
     );
+    const settingsCtrl = new IconButtonControl({
+      svg: SETTINGS_SVG,
+      title: 'View settings',
+      onClick: () => settingsHandlerRef.current?.(),
+    });
+    settingsControlRef.current = settingsCtrl;
+    map.addControl(settingsCtrl, 'bottom-right');
 
     map.on('error', (e) => {
       console.error('[globe] maplibre error:', e.error ?? e);
