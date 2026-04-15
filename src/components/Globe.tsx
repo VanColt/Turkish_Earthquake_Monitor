@@ -59,40 +59,6 @@ const DARK_STYLE: StyleSpecification = {
       paint: { 'fill-color': '#05050a', 'fill-antialias': true },
     },
 
-    // Landcover — subtle texture for forests / ice / sand
-    {
-      id: 'landcover',
-      type: 'fill',
-      source: 'ofm',
-      'source-layer': 'landcover',
-      paint: {
-        'fill-color': [
-          'match',
-          ['get', 'class'],
-          'wood', '#1f2028',
-          'grass', '#1c1d24',
-          'ice', '#262732',
-          'sand', '#232128',
-          '#1a1a24',
-        ],
-        'fill-opacity': 0.65,
-      },
-    },
-
-    // Landuse — residential/urban patches, very subtle
-    {
-      id: 'landuse',
-      type: 'fill',
-      source: 'ofm',
-      'source-layer': 'landuse',
-      filter: ['in', ['get', 'class'], ['literal', ['residential', 'commercial', 'industrial']]],
-      minzoom: 6,
-      paint: {
-        'fill-color': '#202028',
-        'fill-opacity': 0.5,
-      },
-    },
-
     // Country borders — thin, cool gray
     {
       id: 'boundary-country',
@@ -247,64 +213,36 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
     });
 
     map.on('load', () => {
-      // Turkey boundary — subtle fill + amber outline to make TR pop.
-      map.addSource('tr-border', {
+      // World country polygons — gives us per-country color control.
+      // Features use ISO-3 codes as `id` (e.g. "TUR"), `properties.name` is the country name.
+      map.addSource('countries', {
         type: 'geojson',
-        data: '/turkey.geojson',
+        data: '/countries.geojson',
+        generateId: false,
       });
 
-      // TR fill — a slightly brighter wash under the country
+      // Per-country land fill. `match` on the feature id lets us paint each
+      // country independently. Rendered above the base background but below
+      // boundaries so country borders still show.
       map.addLayer(
         {
-          id: 'tr-land',
+          id: 'country-fill',
           type: 'fill',
-          source: 'tr-border',
+          source: 'countries',
           paint: {
-            'fill-color': '#262630',
+            'fill-color': [
+              'match',
+              ['get', 'name'],
+              'Turkey', '#2a2a36', // Türkiye — the subject
+              ['Cyprus', 'Greece', 'Bulgaria', 'Georgia', 'Armenia', 'Azerbaijan', 'Iran', 'Iraq', 'Syria'],
+              '#1d1d26', // neighbours
+              /* default — rest of world */ '#16161e',
+            ],
             'fill-opacity': 1,
           },
         },
         'boundary-state'
       );
-
-      // TR fill tint — subtle amber wash for signal
-      map.addLayer(
-        {
-          id: 'tr-tint',
-          type: 'fill',
-          source: 'tr-border',
-          paint: {
-            'fill-color': '#f0c14a',
-            'fill-opacity': 0.05,
-          },
-        },
-        'boundary-state'
-      );
-
-      // Outer glow (wider, very soft)
-      map.addLayer({
-        id: 'tr-glow',
-        type: 'line',
-        source: 'tr-border',
-        paint: {
-          'line-color': '#f0c14a',
-          'line-width': 6,
-          'line-opacity': 0.18,
-          'line-blur': 4,
-        },
-      });
-
-      // Crisp inner line
-      map.addLayer({
-        id: 'tr-line',
-        type: 'line',
-        source: 'tr-border',
-        paint: {
-          'line-color': '#f0c14a',
-          'line-width': 1.4,
-          'line-opacity': 0.85,
-        },
-      });
 
       // Earthquake source + layers
       map.addSource('quakes', { type: 'geojson', data: toGeoJSON([], null) });
