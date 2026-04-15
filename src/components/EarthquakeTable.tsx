@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { Table, Card, Typography, Tag, Input, Button, Space, Tooltip } from 'antd';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { Table, Input, Button, Space } from 'antd';
 import type { TableProps } from 'antd';
-import { SearchOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import type { FilterDropdownProps } from 'antd/es/table/interface';
+import { SearchOutlined } from '@ant-design/icons';
 import Highlighter from 'react-highlight-words';
 import dayjs from 'dayjs';
-import { Earthquake, getMagnitudeColor } from '@/services/earthquakeService';
-
-const { Title } = Typography;
+import { Earthquake } from '@/services/earthquakeService';
+import { MagnitudeBadge, MagnitudeBar } from './ui/MagnitudeBadge';
+import { relativeTime } from '@/lib/magnitude';
 
 interface EarthquakeTableProps {
   earthquakes: Earthquake[];
@@ -22,16 +22,22 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
   earthquakes,
   loading,
   onEarthquakeSelect,
-  selectedEarthquake
+  selectedEarthquake,
 }) => {
   const [searchText, setSearchText] = useState('');
   const [searchedColumn, setSearchedColumn] = useState('');
 
-  // Memoize handlers to prevent recreating functions on each render
+  // Tick every 30s so relative times refresh.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const handleSearch = useCallback(
-    (selectedKeys: string[], confirm: FilterDropdownProps['confirm'], dataIndex: string) => {
+    (keys: string[], confirm: FilterDropdownProps['confirm'], dataIndex: string) => {
       confirm();
-      setSearchText(selectedKeys[0]);
+      setSearchText(keys[0] ?? '');
       setSearchedColumn(dataIndex);
     },
     []
@@ -42,191 +48,179 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
     setSearchText('');
   }, []);
 
-  // Memoize the column search props function to prevent recreation on each render
-  const getColumnSearchProps = useCallback((dataIndex: keyof Earthquake | 'closestCity') => ({
-    filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: FilterDropdownProps) => (
-      <div style={{ padding: 8 }}>
-        <Input
-          placeholder={`Search ${dataIndex}`}
-          value={selectedKeys[0]}
-          onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-          onPressEnter={() => handleSearch(selectedKeys as string[], confirm, dataIndex)}
-          style={{ marginBottom: 8, display: 'block' }}
-        />
-        <Space>
-          <Button
-            type="primary"
-            onClick={() => handleSearch(selectedKeys as string[], confirm, dataIndex)}
-            icon={<SearchOutlined />}
-            size="small"
-            style={{ width: 90 }}
-          >
-            Search
-          </Button>
-          <Button
-            onClick={() => clearFilters && handleReset(clearFilters)}
-            size="small"
-            style={{ width: 90 }}
-          >
-            Reset
-          </Button>
-        </Space>
-      </div>
-    ),
-    filterIcon: (filtered: boolean) => (
-      <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />
-    ),
-    onFilter: (value: string | number | boolean | bigint, record: Earthquake) => {
-      // Convert value to string for comparison
-      const searchValue = String(value).toLowerCase();
-      
-      if (dataIndex === 'closestCity') {
-        const cityName = record.location_properties.closestCity.name;
-        return cityName ? cityName.toString().toLowerCase().includes(searchValue) : false;
-      }
-      
-      const fieldValue = record[dataIndex as keyof Earthquake];
-      if (!fieldValue) return false;
-      
-      return String(fieldValue).toLowerCase().includes(searchValue);
-    },
-    render: (text: string, record: Earthquake) => {
-      if (dataIndex === 'closestCity') {
-        text = record.location_properties.closestCity.name;
-      }
-      
-      if (searchedColumn === dataIndex) {
-        return (
-          <Highlighter
-            highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
-            searchWords={[searchText]}
-            autoEscape
-            textToHighlight={text ? text.toString() : ''}
+  const getColumnSearchProps = useCallback(
+    (dataIndex: keyof Earthquake | 'closestCity') => ({
+      filterDropdown: ({
+        setSelectedKeys,
+        selectedKeys,
+        confirm,
+        clearFilters,
+      }: FilterDropdownProps) => (
+        <div style={{ padding: 8, background: 'var(--bg-1)', border: '1px solid var(--line)' }}>
+          <Input
+            placeholder={`Search ${dataIndex}`}
+            value={selectedKeys[0]}
+            onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => handleSearch(selectedKeys as string[], confirm, dataIndex)}
+            style={{ marginBottom: 8, display: 'block' }}
           />
-        );
-      }
-      return text;
-    },
-  }), [searchText, searchedColumn, handleSearch, handleReset]);
-
-  // Memoize columns to prevent recreating the array on every render
-  const columns = useMemo<TableProps<Earthquake>['columns']>(() => [
-    {
-      title: 'Date & Time',
-      dataIndex: 'date_time',
-      key: 'date_time',
-      sorter: (a, b) => dayjs(a.date_time).unix() - dayjs(b.date_time).unix(),
-      defaultSortOrder: 'descend',
-      render: (text) => (
-        <span title={dayjs(text).format('YYYY-MM-DD HH:mm:ss')}>
-          {dayjs(text).format('MM/DD HH:mm')}
-        </span>
+          <Space>
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
+              size="small"
+              onClick={() => handleSearch(selectedKeys as string[], confirm, dataIndex)}
+              style={{ width: 84 }}
+            >
+              Search
+            </Button>
+            <Button
+              size="small"
+              onClick={() => clearFilters && handleReset(clearFilters)}
+              style={{ width: 84 }}
+            >
+              Reset
+            </Button>
+          </Space>
+        </div>
       ),
-      width: '12%',
-    },
-    {
-      title: 'Location',
-      dataIndex: 'title',
-      key: 'title',
-      ...getColumnSearchProps('title'),
-      render: (text) => {
-        // Use CSS truncation instead of Ant Design's EllipsisMeasure
-        return (
-          <div className="truncate max-w-[150px] whitespace-nowrap overflow-hidden text-ellipsis" title={text}>{text}</div>
-        );
+      filterIcon: (filtered: boolean) => (
+        <SearchOutlined style={{ color: filtered ? 'var(--accent)' : 'var(--fg-2)' }} />
+      ),
+      onFilter: (value: string | number | boolean | bigint, record: Earthquake) => {
+        const v = String(value).toLowerCase();
+        if (dataIndex === 'closestCity') {
+          return record.location_properties.closestCity.name.toLowerCase().includes(v);
+        }
+        const field = record[dataIndex as keyof Earthquake];
+        return field ? String(field).toLowerCase().includes(v) : false;
       },
-      width: '25%',
-    },
-    {
-      title: 'Magnitude',
-      dataIndex: 'mag',
-      key: 'mag',
-      sorter: (a, b) => a.mag - b.mag,
-      render: (mag) => (
-        <Tag color={getMagnitudeColor(mag)}>
-          M{mag.toFixed(1)}
-        </Tag>
-      ),
-      width: '12%',
-    },
-    {
-      title: 'Depth',
-      dataIndex: 'depth',
-      key: 'depth',
-      sorter: (a, b) => a.depth - b.depth,
-      render: (depth) => `${depth} km`,
-      width: '10%',
-    },
-    {
-      title: 'Closest City',
-      key: 'closestCity',
-      ...getColumnSearchProps('closestCity'),
-      render: (_, record) => (
-        <span>{record.location_properties.closestCity.name}</span>
-      ),
-      width: '15%',
-    },
-    {
-      title: 'Distance',
-      key: 'distance',
-      render: (_, record) => (
-        <span>{(record.location_properties.closestCity.distance / 1000).toFixed(1)} km</span>
-      ),
-      sorter: (a, b) => 
-        a.location_properties.closestCity.distance - 
-        b.location_properties.closestCity.distance,
-      width: '10%',
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Button 
-          type="text"
-          shape="circle"
-          icon={<EnvironmentOutlined />} 
-          onClick={(e) => {
-            e.stopPropagation();
-            onEarthquakeSelect(record);
-          }}
-          title="View on map"
-        />
-      ),
-      width: '8%',
-    },
-  ], [getColumnSearchProps, onEarthquakeSelect]);
+      render: (text: string, record: Earthquake) => {
+        const display =
+          dataIndex === 'closestCity' ? record.location_properties.closestCity.name : text;
+        if (searchedColumn === dataIndex && searchText) {
+          return (
+            <Highlighter
+              highlightStyle={{ backgroundColor: 'var(--accent-dim)', color: 'var(--bg-0)', padding: 0 }}
+              searchWords={[searchText]}
+              autoEscape
+              textToHighlight={display ?? ''}
+            />
+          );
+        }
+        return display;
+      },
+    }),
+    [searchText, searchedColumn, handleSearch, handleReset]
+  );
+
+  const columns = useMemo<TableProps<Earthquake>['columns']>(
+    () => [
+      {
+        title: 'Time',
+        dataIndex: 'date_time',
+        key: 'date_time',
+        sorter: (a, b) => dayjs(a.date_time).unix() - dayjs(b.date_time).unix(),
+        defaultSortOrder: 'descend',
+        render: (text: string) => (
+          <div className="mono tabular-nums text-[11px]" title={dayjs(text).format('YYYY-MM-DD HH:mm:ss')}>
+            <div className="text-fg-0">{relativeTime(text)}</div>
+            <div className="text-fg-2 text-[10px]">{dayjs(text).format('MM-DD HH:mm')}</div>
+          </div>
+        ),
+        width: 110,
+      },
+      {
+        title: 'Magnitude',
+        dataIndex: 'mag',
+        key: 'mag',
+        sorter: (a, b) => a.mag - b.mag,
+        render: (mag: number) => (
+          <div className="flex items-center gap-2">
+            <MagnitudeBadge mag={mag} />
+            <MagnitudeBar mag={mag} />
+          </div>
+        ),
+        width: 150,
+      },
+      {
+        title: 'Location',
+        dataIndex: 'title',
+        key: 'title',
+        ...getColumnSearchProps('title'),
+        render: (text: string) => (
+          <div className="text-[12px] text-fg-0 truncate max-w-[220px]" title={text}>
+            {text}
+          </div>
+        ),
+      },
+      {
+        title: 'Depth',
+        dataIndex: 'depth',
+        key: 'depth',
+        sorter: (a, b) => a.depth - b.depth,
+        render: (depth: number) => (
+          <span className="mono tabular-nums text-[11px] text-fg-0">
+            {depth.toFixed(1)}
+            <span className="text-fg-2"> km</span>
+          </span>
+        ),
+        width: 80,
+      },
+      {
+        title: 'Closest City',
+        key: 'closestCity',
+        ...getColumnSearchProps('closestCity'),
+        render: (_: unknown, record: Earthquake) => (
+          <div className="flex items-baseline gap-2">
+            <span className="text-[12px] text-fg-0">
+              {record.location_properties.closestCity.name}
+            </span>
+            <span className="mono tabular-nums text-[10px] text-fg-2">
+              {(record.location_properties.closestCity.distance / 1000).toFixed(1)} km
+            </span>
+          </div>
+        ),
+        sorter: (a, b) =>
+          a.location_properties.closestCity.distance -
+          b.location_properties.closestCity.distance,
+      },
+    ],
+    [getColumnSearchProps]
+  );
 
   return (
-    <Card 
-      className="h-full shadow-md bg-transparent"
-      styles={{ body: { backgroundColor: 'transparent' } }}
-      variant="outlined"
-    >
+    <div className="border border-line bg-bg-1">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-line">
+        <div className="mono text-[10px] uppercase tracking-[0.1em] text-fg-2">
+          Event Log
+        </div>
+        <div className="mono text-[10px] text-fg-2">
+          {earthquakes.length} events
+        </div>
+      </div>
       <Table
         rowKey="earthquake_id"
         columns={columns}
         dataSource={earthquakes}
         loading={loading}
-        pagination={{ 
+        pagination={{
           defaultPageSize: 10,
           showSizeChanger: true,
-          pageSizeOptions: [10, 20, 50],
-          showTotal: (total) => `Total ${total} earthquakes`,
-          className: 'custom-pagination'
+          pageSizeOptions: [10, 20, 50, 100],
+          showTotal: (total) => `${total} total`,
+          size: 'small',
         }}
         scroll={{ x: true }}
-        size="middle"
-        rowClassName={(record) => 
-          record.earthquake_id === selectedEarthquake?.earthquake_id ? 'bg-gray-800' : ''
+        size="small"
+        rowClassName={(record) =>
+          record.earthquake_id === selectedEarthquake?.earthquake_id
+            ? 'row-selected cursor-pointer'
+            : 'cursor-pointer'
         }
-        onRow={useMemo(() => {
-          return (record: Earthquake) => ({
-            onClick: () => onEarthquakeSelect(record),
-            className: 'cursor-pointer'
-          });
-        }, [onEarthquakeSelect])}
+        onRow={(record) => ({ onClick: () => onEarthquakeSelect(record) })}
       />
-    </Card>
+    </div>
   );
 };
 

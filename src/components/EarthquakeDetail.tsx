@@ -1,162 +1,160 @@
 'use client';
 
 import React from 'react';
-import { Card, Typography, Descriptions, Tag, Empty, Divider, List, Avatar } from 'antd';
-import { ClockCircleOutlined, EnvironmentOutlined, ColumnHeightOutlined, AimOutlined, HomeOutlined, GlobalOutlined } from '@ant-design/icons';
-import { Earthquake, getMagnitudeColor } from '@/services/earthquakeService';
-
-const { Title, Text } = Typography;
+import { Earthquake } from '@/services/earthquakeService';
+import { magnitudeVar, magnitudeLabel, relativeTime } from '@/lib/magnitude';
 
 interface EarthquakeDetailProps {
   earthquake: Earthquake | null;
 }
 
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mono text-[10px] uppercase tracking-[0.1em] text-fg-2">{children}</div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="border-t border-line pt-2">
+      <Label>{label}</Label>
+      <div className="mt-1 text-[12px] text-fg-0">{children}</div>
+    </div>
+  );
+}
+
+function CityBar({
+  name,
+  distanceKm,
+  population,
+  maxKm,
+}: {
+  name: string;
+  distanceKm: number;
+  population: number;
+  maxKm: number;
+}) {
+  const pct = Math.max(4, Math.min(100, (distanceKm / maxKm) * 100));
+  return (
+    <div className="flex items-center gap-3 py-1.5">
+      <span className="w-24 truncate text-[12px] text-fg-0">{name}</span>
+      <div className="flex-1 h-1 bg-bg-2">
+        <div className="h-full" style={{ width: `${pct}%`, background: 'var(--fg-3)' }} />
+      </div>
+      <span className="mono tabular-nums text-[10px] text-fg-1 w-20 text-right">
+        {distanceKm.toFixed(1)} km
+      </span>
+      <span className="mono tabular-nums text-[10px] text-fg-2 w-14 text-right">
+        {population >= 1_000_000
+          ? `${(population / 1_000_000).toFixed(1)}M`
+          : `${Math.round(population / 1000)}K`}
+      </span>
+    </div>
+  );
+}
+
 const EarthquakeDetail: React.FC<EarthquakeDetailProps> = ({ earthquake }) => {
   if (!earthquake) {
     return (
-      <Card className="h-full shadow-md">
-        <Empty description="Select an earthquake to view details" />
-      </Card>
+      <div className="h-full flex items-center justify-center">
+        <div className="mono text-[11px] text-fg-2 text-center">
+          <div>No event selected</div>
+          <div className="mt-1 text-[10px] text-fg-3">Click a marker or a row to inspect</div>
+        </div>
+      </div>
     );
   }
 
-  // Format distance to be more readable
-  const formatDistance = (meters: number): string => {
-    if (meters < 1000) return `${meters.toFixed(0)} m`;
-    return `${(meters / 1000).toFixed(1)} km`;
-  };
+  const [lng, lat] = earthquake.geojson.coordinates;
+  const cities = earthquake.location_properties?.closestCities?.slice(0, 3) ?? [];
+  const airports = earthquake.location_properties?.airports?.slice(0, 2) ?? [];
+  const maxKm = cities.length
+    ? Math.max(...cities.map((c) => c.distance / 1000))
+    : 100;
 
   return (
-    <Card 
-      className="h-full shadow-md bg-transparent overflow-y-auto"
-      styles={{ 
-        body: { 
-          backgroundColor: 'transparent', 
-          height: '100%', 
-          overflowY: 'auto', 
-          paddingBottom: '12px',
-          padding: '16px 12px' // Reduced horizontal padding for laptop screens
-        } 
-      }}
-      variant="outlined"
-      title={
-        <div className="flex items-center flex-wrap gap-2">
-          <Title level={5} className="m-0 text-sm lg:text-base leading-tight">
-            {earthquake.title.length > 50 ? `${earthquake.title.substring(0, 50)}...` : earthquake.title}
-          </Title>
-          <Tag color={getMagnitudeColor(earthquake.mag)} className="text-xs">
-            M{earthquake.mag?.toFixed(1) || 'N/A'}
-          </Tag>
+    <div className="flex flex-col gap-4 h-full overflow-y-auto pr-1">
+      {/* Hero */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <Label>Event</Label>
+          <div className="text-[13px] text-fg-0 mt-1 break-words">{earthquake.title}</div>
+          <div className="mono text-[10px] text-fg-2 mt-1">
+            {relativeTime(earthquake.date_time)} · {earthquake.date_time}
+          </div>
         </div>
-      }
-    >
-      <Descriptions 
-        column={{ xs: 1, sm: 1, md: 2, lg: 2, xl: 2 }} 
-        size="small" 
-        bordered={true}
-        className="mb-4"
-        styles={{ 
-          label: { fontSize: '12px', fontWeight: '500' },
-          content: { fontSize: '12px' } 
-        }}
-      >
-        <Descriptions.Item 
-          label={<span className="text-xs"><ClockCircleOutlined className="mr-1" /> Date & Time</span>}
-          span={2}
-        >
-          <div className="text-xs leading-relaxed">
-            {new Date(earthquake.date_time).toLocaleString()}
-            <br className="sm:hidden" />
-            <span className="text-gray-500 ml-0 sm:ml-2">({earthquake.location_tz})</span>
+        <div className="shrink-0 text-right">
+          <div
+            className="mono tabular-nums leading-none"
+            style={{ color: magnitudeVar(earthquake.mag), fontSize: 40, fontWeight: 500 }}
+          >
+            {earthquake.mag.toFixed(1)}
           </div>
-        </Descriptions.Item>
-        
-        <Descriptions.Item 
-          label={<span className="text-xs"><EnvironmentOutlined className="mr-1" /> Coordinates</span>}
-        >
-          <Text className="text-xs font-mono">
-            {earthquake.geojson.coordinates[1].toFixed(4)}, {earthquake.geojson.coordinates[0].toFixed(4)}
-          </Text>
-        </Descriptions.Item>
-        
-        <Descriptions.Item 
-          label={<span className="text-xs"><AimOutlined className="mr-1" /> Depth</span>}
-        >
-          <Text className="text-xs font-semibold">{earthquake.depth} km</Text>
-        </Descriptions.Item>
-        
-        <Descriptions.Item 
-          label={<span className="text-xs"><HomeOutlined className="mr-1" /> Epicenter</span>}
-          span={2}
-        >
-          <div className="text-xs">
-            <div className="font-medium">{earthquake.location_properties.epiCenter.name}</div>
-            {earthquake.location_properties.epiCenter.population && (
-              <Text type="secondary" className="text-xs">
-                Population: {earthquake.location_properties.epiCenter.population.toLocaleString()}
-              </Text>
-            )}
+          <div
+            className="mono text-[10px] uppercase tracking-[0.1em] mt-1"
+            style={{ color: magnitudeVar(earthquake.mag) }}
+          >
+            {magnitudeLabel(earthquake.mag)}
           </div>
-        </Descriptions.Item>
-      </Descriptions>
+        </div>
+      </div>
 
-      <Divider orientation="left" className="my-3 text-sm font-medium">Closest Cities</Divider>
-      
-      <List
-        size="small"
-        className="mb-4"
-        dataSource={earthquake.location_properties.closestCities.slice(0, 3)} // Limit to 3 cities for better space usage
-        renderItem={(city) => (
-          <List.Item className="py-2">
-            <List.Item.Meta
-              avatar={<Avatar size="small" icon={<GlobalOutlined />} className="bg-blue-500" />}
-              title={<span className="text-sm font-medium">{city.name}</span>}
-              description={
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between items-center">
-                    <Text type="secondary" className="text-xs">
-                      Distance: {formatDistance(city.distance)}
-                    </Text>
-                    <Text type="secondary" className="text-xs">
-                      Pop: {(city.population / 1000).toFixed(0)}K
-                    </Text>
-                  </div>
-                </div>
-              }
-            />
-          </List.Item>
-        )}
-      />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Depth">
+          <span className="mono tabular-nums">
+            {earthquake.depth.toFixed(1)}
+            <span className="text-fg-2"> km</span>
+          </span>
+        </Field>
+        <Field label="Coordinates">
+          <span className="mono tabular-nums text-[11px]">
+            {lat.toFixed(4)}, {lng.toFixed(4)}
+          </span>
+        </Field>
+        <Field label="Epicenter">
+          <span>{earthquake.location_properties?.epiCenter?.name ?? '—'}</span>
+        </Field>
+        <Field label="Timezone">
+          <span className="mono text-[11px]">{earthquake.location_tz ?? '—'}</span>
+        </Field>
+      </div>
 
-      {earthquake.location_properties.airports && earthquake.location_properties.airports.length > 0 && (
-        <>
-          <Divider orientation="left" className="my-3 text-sm font-medium">Nearby Airports</Divider>
-          
-          <List
-            size="small"
-            dataSource={earthquake.location_properties.airports.slice(0, 2)} // Limit to 2 airports
-            renderItem={(airport) => (
-              <List.Item className="py-2">
-                <List.Item.Meta
-                  avatar={<Avatar size="small" className="bg-orange-500">✈️</Avatar>}
-                  title={
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium truncate">{airport.name}</span>
-                      <Tag className="text-xs">{airport.code}</Tag>
-                    </div>
-                  }
-                  description={
-                    <Text type="secondary" className="text-xs">
-                      Distance: {formatDistance(airport.distance)}
-                    </Text>
-                  }
-                />
-              </List.Item>
-            )}
-          />
-        </>
+      {cities.length > 0 && (
+        <div>
+          <Label>Closest cities</Label>
+          <div className="mt-2">
+            {cities.map((c) => (
+              <CityBar
+                key={c.cityCode}
+                name={c.name}
+                distanceKm={c.distance / 1000}
+                population={c.population}
+                maxKm={maxKm}
+              />
+            ))}
+          </div>
+        </div>
       )}
-    </Card>
+
+      {airports.length > 0 && (
+        <div>
+          <Label>Nearby airports</Label>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {airports.map((a) => (
+              <div key={a.code} className="flex items-center gap-3 py-1">
+                <span className="mono text-[11px] px-1.5 border border-line text-fg-1">
+                  {a.code}
+                </span>
+                <span className="text-[12px] text-fg-0 truncate flex-1">{a.name}</span>
+                <span className="mono tabular-nums text-[10px] text-fg-2">
+                  {(a.distance / 1000).toFixed(1)} km
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

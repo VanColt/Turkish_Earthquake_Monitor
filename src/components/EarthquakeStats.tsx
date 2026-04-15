@@ -1,11 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Card, Statistic, Row, Col, Typography, Progress, Tooltip, Badge, Spin } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { Earthquake, getMagnitudeColor } from '@/services/earthquakeService';
-
-const { Title, Text } = Typography;
+import { Earthquake } from '@/services/earthquakeService';
+import { MagnitudeBadge } from './ui/MagnitudeBadge';
+import { magnitudeVar, relativeTime } from '@/lib/magnitude';
 
 interface EarthquakeStatsProps {
   earthquakes: Earthquake[];
@@ -17,220 +15,180 @@ interface EarthquakeStatsProps {
   } | null;
 }
 
-const EarthquakeStats: React.FC<EarthquakeStatsProps> = ({ earthquakes, loading, metadata }) => {
-  // Calculate statistics
-  const calculateStats = () => {
-    if (!earthquakes.length) return null;
-    
-    const totalEarthquakes = earthquakes.length;
-    const averageMagnitude = earthquakes.reduce((sum, eq) => sum + eq.mag, 0) / totalEarthquakes;
-    const averageDepth = earthquakes.reduce((sum, eq) => sum + eq.depth, 0) / totalEarthquakes;
-    
-    // Count earthquakes by magnitude range
-    const magnitudeRanges = {
-      minor: earthquakes.filter(eq => eq.mag < 3).length,
-      light: earthquakes.filter(eq => eq.mag >= 3 && eq.mag < 4).length,
-      moderate: earthquakes.filter(eq => eq.mag >= 4 && eq.mag < 5).length,
-      strong: earthquakes.filter(eq => eq.mag >= 5 && eq.mag < 6).length,
-      major: earthquakes.filter(eq => eq.mag >= 6).length,
-    };
-    
-    // Find strongest earthquake
-    const strongestEarthquake = earthquakes.reduce(
-      (strongest, current) => (current.mag > strongest.mag ? current : strongest),
-      earthquakes[0]
-    );
-    
-    // Find most recent earthquake
-    const mostRecent = earthquakes.reduce(
-      (latest, current) => {
-        const latestDate = new Date(latest.date_time).getTime();
-        const currentDate = new Date(current.date_time).getTime();
-        return currentDate > latestDate ? current : latest;
-      },
-      earthquakes[0]
-    );
-    
-    return {
-      totalEarthquakes,
-      averageMagnitude,
-      averageDepth,
-      magnitudeRanges,
-      strongestEarthquake,
-      mostRecent,
-    };
+interface Stats {
+  total: number;
+  avgMag: number;
+  avgDepth: number;
+  ranges: { minor: number; light: number; moderate: number; strong: number; major: number };
+  strongest: Earthquake;
+  mostRecent: Earthquake;
+}
+
+function computeStats(earthquakes: Earthquake[]): Stats | null {
+  if (!earthquakes.length) return null;
+  const total = earthquakes.length;
+  const avgMag = earthquakes.reduce((s, e) => s + e.mag, 0) / total;
+  const avgDepth = earthquakes.reduce((s, e) => s + e.depth, 0) / total;
+  const ranges = {
+    minor: earthquakes.filter((e) => e.mag < 3).length,
+    light: earthquakes.filter((e) => e.mag >= 3 && e.mag < 4).length,
+    moderate: earthquakes.filter((e) => e.mag >= 4 && e.mag < 5).length,
+    strong: earthquakes.filter((e) => e.mag >= 5 && e.mag < 6).length,
+    major: earthquakes.filter((e) => e.mag >= 6).length,
   };
-  
-  const stats = calculateStats();
-  
-  if (!stats) {
-    return (
-      <Card loading={loading} className="h-full shadow-md bg-transparent" variant="outlined">
-        <div className="h-full flex items-center justify-center">
-          <Spin size="large" />
+  const strongest = earthquakes.reduce((m, e) => (e.mag > m.mag ? e : m), earthquakes[0]);
+  const mostRecent = earthquakes.reduce(
+    (m, e) => (new Date(e.date_time).getTime() > new Date(m.date_time).getTime() ? e : m),
+    earthquakes[0]
+  );
+  return { total, avgMag, avgDepth, ranges, strongest, mostRecent };
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-[10px] uppercase tracking-[0.08em] text-fg-2">{children}</div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  suffix,
+  emphasize,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+  emphasize?: boolean;
+}) {
+  return (
+    <div className="border border-line bg-bg-1 px-3 py-2.5">
+      <Label>{label}</Label>
+      <div
+        className="mono mt-1 tabular-nums"
+        style={{
+          fontSize: 22,
+          color: emphasize ? 'var(--accent)' : 'var(--fg-0)',
+          lineHeight: 1.1,
+        }}
+      >
+        {value}
+        {suffix && <span className="ml-1 text-fg-2" style={{ fontSize: 12 }}>{suffix}</span>}
+      </div>
+    </div>
+  );
+}
+
+function StackedMagBar({ ranges, total }: { ranges: Stats['ranges']; total: number }) {
+  const segments = [
+    { key: 'minor', label: '< 3.0', count: ranges.minor, mag: 2 },
+    { key: 'light', label: '3.0–3.9', count: ranges.light, mag: 3.5 },
+    { key: 'moderate', label: '4.0–4.9', count: ranges.moderate, mag: 4.5 },
+    { key: 'strong', label: '5.0–5.9', count: ranges.strong, mag: 5.5 },
+    { key: 'major', label: '≥ 6.0', count: ranges.major, mag: 6.5 },
+  ];
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <Label>Magnitude distribution</Label>
+        <span className="mono text-[10px] text-fg-2">N={total}</span>
+      </div>
+      <div className="flex h-2 overflow-hidden border border-line">
+        {segments.map((s) => {
+          const pct = total ? (s.count / total) * 100 : 0;
+          if (pct === 0) return null;
+          return (
+            <div
+              key={s.key}
+              style={{ width: `${pct}%`, background: magnitudeVar(s.mag) }}
+              title={`${s.label} — ${s.count}`}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-2 grid grid-cols-5 gap-1">
+        {segments.map((s) => (
+          <div key={s.key} className="flex flex-col items-start gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="inline-block"
+                style={{ width: 6, height: 6, background: magnitudeVar(s.mag) }}
+              />
+              <span className="mono text-[10px] text-fg-1">{s.label}</span>
+            </div>
+            <span className="mono tabular-nums text-[11px] text-fg-0">{s.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LogEntry({ tag, eq }: { tag: string; eq: Earthquake }) {
+  return (
+    <div className="flex items-start gap-3 border-t border-line py-2">
+      <div className="w-20 shrink-0">
+        <Label>{tag}</Label>
+        <div className="mono text-[10px] text-fg-2 mt-0.5">{relativeTime(eq.date_time)}</div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <MagnitudeBadge mag={eq.mag} />
+          <span className="text-[12px] text-fg-0 truncate">{eq.title}</span>
         </div>
-      </Card>
-    );
+        <div className="mono text-[10px] text-fg-2 mt-0.5 truncate">
+          {eq.location_properties?.closestCity?.name ?? '—'} ·{' '}
+          {eq.depth.toFixed(1)} km
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const EarthquakeStats: React.FC<EarthquakeStatsProps> = ({
+  earthquakes,
+  loading,
+  metadata,
+}) => {
+  const stats = computeStats(earthquakes);
+
+  if (loading && !stats) {
+    return <div className="mono text-[11px] text-fg-2">Loading statistics…</div>;
   }
-  
-  const timeFrame = metadata ? 
-    `${new Date(metadata.date_starts).toLocaleString()} - ${new Date(metadata.date_ends).toLocaleString()}` : 
-    'Last 24 hours';
+  if (!stats) {
+    return <div className="mono text-[11px] text-fg-2">No earthquake data.</div>;
+  }
+
+  const more = metadata ? Math.max(0, metadata.count - stats.total) : 0;
 
   return (
-    <Card 
-      className="shadow-md bg-transparent" 
-      styles={{ body: { backgroundColor: 'transparent', padding: '12px' } }}
-      variant="outlined"
-      title={
-        <div className="flex justify-between items-center">
-          <Title level={5} className="m-0">Earthquake Statistics</Title>
-          <InfoCircleOutlined className="text-gray-400 cursor-help" title={timeFrame} />
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className="mono text-[10px] uppercase tracking-[0.1em] text-fg-2">
+          Statistical Analysis
         </div>
-      }
-    >
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} md={8}>
-          <Card variant="borderless" size="small">
-            <Statistic
-              title="Total Earthquakes"
-              value={stats.totalEarthquakes}
-              precision={0}
-              valueStyle={{ color: '#1677ff' }}
-            />
-            {metadata && metadata.count > stats.totalEarthquakes && (
-              <Text type="secondary" className="block mt-2">
-                {metadata.count - stats.totalEarthquakes} more in full dataset
-              </Text>
-            )}
-          </Card>
-        </Col>
-        
-        <Col xs={24} sm={12} md={8}>
-          <Card variant="borderless" size="small">
-            <Statistic
-              title="Average Magnitude"
-              value={stats.averageMagnitude}
-              precision={1}
-              valueStyle={{ color: getMagnitudeColor(stats.averageMagnitude) }}
-              prefix="M"
-            />
-          </Card>
-        </Col>
-        
-        <Col xs={24} sm={12} md={8}>
-          <Card variant="borderless" size="small">
-            <Statistic
-              title="Average Depth"
-              value={stats.averageDepth}
-              precision={1}
-              suffix="km"
-              valueStyle={{ color: '#722ed1' }}
-            />
-          </Card>
-        </Col>
-        
-        <Col xs={24} md={12}>
-          <Card variant="borderless" size="small" title="Magnitude Distribution">
-            <div className="space-y-2">
-              <div>
-                <div className="flex justify-between mb-1">
-                  <Text>Minor (&lt;3.0)</Text>
-                  <Text>{stats.magnitudeRanges.minor}</Text>
-                </div>
-                <Progress 
-                  percent={(stats.magnitudeRanges.minor / stats.totalEarthquakes) * 100} 
-                  showInfo={false} 
-                  strokeColor="#52c41a" 
-                />
-              </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <Text>Light (3.0-3.9)</Text>
-                  <Text>{stats.magnitudeRanges.light}</Text>
-                </div>
-                <Progress 
-                  percent={(stats.magnitudeRanges.light / stats.totalEarthquakes) * 100} 
-                  showInfo={false} 
-                  strokeColor="#faad14" 
-                />
-              </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <Text>Moderate (4.0-4.9)</Text>
-                  <Text>{stats.magnitudeRanges.moderate}</Text>
-                </div>
-                <Progress 
-                  percent={(stats.magnitudeRanges.moderate / stats.totalEarthquakes) * 100} 
-                  showInfo={false} 
-                  strokeColor="#fa8c16" 
-                />
-              </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <Text>Strong (5.0-5.9)</Text>
-                  <Text>{stats.magnitudeRanges.strong}</Text>
-                </div>
-                <Progress 
-                  percent={(stats.magnitudeRanges.strong / stats.totalEarthquakes) * 100} 
-                  showInfo={false} 
-                  strokeColor="#f5222d" 
-                />
-              </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <Text>Major (≥6.0)</Text>
-                  <Text>{stats.magnitudeRanges.major}</Text>
-                </div>
-                <Progress 
-                  percent={(stats.magnitudeRanges.major / stats.totalEarthquakes) * 100} 
-                  showInfo={false} 
-                  strokeColor="#a8071a" 
-                />
-              </div>
-            </div>
-          </Card>
-        </Col>
-        
-        <Col xs={24} md={12}>
-          <Card variant="borderless" size="small" title="Notable Events">
-            <div className="space-y-4">
-              <div>
-                <Text type="secondary">Strongest Earthquake</Text>
-                <div className="flex items-center mt-1">
-                  <Badge 
-                    count={`M${stats.strongestEarthquake.mag.toFixed(1)}`} 
-                    style={{ backgroundColor: getMagnitudeColor(stats.strongestEarthquake.mag) }} 
-                  />
-                  <Text strong className="ml-2 truncate">{stats.strongestEarthquake.title}</Text>
-                </div>
-                <Text type="secondary" className="block mt-1">
-                  {new Date(stats.strongestEarthquake.date_time).toLocaleString()}
-                </Text>
-              </div>
-              
-              <div>
-                <Text type="secondary">Most Recent Earthquake</Text>
-                <div className="flex items-center mt-1">
-                  <Badge 
-                    count={`M${stats.mostRecent.mag.toFixed(1)}`} 
-                    style={{ backgroundColor: getMagnitudeColor(stats.mostRecent.mag) }} 
-                  />
-                  <Text strong className="ml-2 truncate">{stats.mostRecent.title}</Text>
-                </div>
-                <Text type="secondary" className="block mt-1">
-                  {new Date(stats.mostRecent.date_time).toLocaleString()}
-                </Text>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
-    </Card>
+        {more > 0 && (
+          <span className="mono text-[10px] text-fg-2">+{more} in full dataset</span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <StatTile label="Total" value={stats.total.toString()} />
+        <StatTile
+          label="Avg Mag"
+          value={stats.avgMag.toFixed(2)}
+          emphasize={stats.avgMag >= 4}
+        />
+        <StatTile label="Avg Depth" value={stats.avgDepth.toFixed(1)} suffix="km" />
+      </div>
+
+      <StackedMagBar ranges={stats.ranges} total={stats.total} />
+
+      <div>
+        <LogEntry tag="Strongest" eq={stats.strongest} />
+        <LogEntry tag="Most recent" eq={stats.mostRecent} />
+      </div>
+    </div>
   );
 };
 

@@ -1,178 +1,241 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Tactical dark palette */
+  --bg-0: oklch(0.12 0 0);
+  --bg-1: oklch(0.16 0 0);
+  --bg-2: oklch(0.20 0 0);
+  --bg-3: oklch(0.24 0 0);
+
+  --fg-0: oklch(0.95 0 0);
+  --fg-1: oklch(0.70 0 0);
+  --fg-2: oklch(0.50 0 0);
+  --fg-3: oklch(0.35 0 0);
+
+  --line: oklch(0.25 0 0);
+  --line-strong: oklch(0.32 0 0);
+
+  --accent: oklch(0.78 0.16 85);
+  --accent-dim: oklch(0.60 0.12 85);
+
+  /* Magnitude scale (single source of truth) */
+  --mag-low: oklch(0.62 0.03 240);
+  --mag-mid: oklch(0.78 0.15 75);
+  --mag-high: oklch(0.68 0.18 40);
+  --mag-max: oklch(0.60 0.22 25);
+
+  /* Type scale */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+  --text-3xl: 40px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg-0: var(--bg-0);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-bg-3: var(--bg-3);
+  --color-fg-0: var(--fg-0);
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-mag-low: var(--mag-low);
+  --color-mag-mid: var(--mag-mid);
+  --color-mag-high: var(--mag-high);
+  --color-mag-max: var(--mag-max);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-0);
+  color: var(--fg-0);
+  font-family: var(--font-inter), system-ui, sans-serif;
   overflow-x: hidden;
 }
 
-/* Hide scrollbars but keep scrolling functionality */
+/* Tabular figures everywhere numbers appear */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.mono {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hide scrollbars but keep scrolling */
 ::-webkit-scrollbar {
-  width: 0px;
-  height: 0px;
+  width: 0;
+  height: 0;
   background: transparent;
 }
-
-/* For Firefox */
 * {
   scrollbar-width: none;
-}
-
-/* For Internet Explorer and Edge */
-* {
   -ms-overflow-style: none;
 }
 
-/* Custom pagination styles for dark mode */
-.ant-pagination {
-  color: #ffffff !important;
+/* Leaflet dark map */
+.leaflet-container {
+  background-color: var(--bg-0);
+  outline: none;
+}
+.leaflet-control-zoom a {
+  background-color: var(--bg-1) !important;
+  color: var(--fg-1) !important;
+  border-color: var(--line) !important;
+  border-radius: 0 !important;
+}
+.leaflet-control-zoom a:hover {
+  background-color: var(--bg-2) !important;
+  color: var(--fg-0) !important;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--bg-1) !important;
+  color: var(--fg-0) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
 }
 
-.ant-pagination .ant-pagination-item a {
-  color: #ffffff !important;
-}
-
-.ant-pagination .ant-pagination-item-active {
-  background-color: #1890ff !important;
-  border-color: #1890ff !important;
-}
-
-.ant-pagination .ant-pagination-item-active a {
-  color: #ffffff !important;
-}
-
+/* AntD dark overrides — minimal, targeted */
+.ant-pagination,
+.ant-pagination .ant-pagination-item a,
 .ant-pagination .ant-pagination-prev button,
 .ant-pagination .ant-pagination-next button {
-  color: #ffffff !important;
+  color: var(--fg-1) !important;
 }
-
-.ant-pagination .ant-select-selector {
-  background-color: #1f1f1f !important;
-  color: #ffffff !important;
-  border-color: #303030 !important;
+.ant-pagination .ant-pagination-item-active {
+  background-color: transparent !important;
+  border-color: var(--accent) !important;
 }
-
-.ant-pagination .ant-select-arrow {
-  color: #ffffff !important;
+.ant-pagination .ant-pagination-item-active a {
+  color: var(--accent) !important;
 }
-
 .ant-select-dropdown {
-  background-color: #1f1f1f !important;
-  color: #ffffff !important;
-  border: 1px solid #303030 !important;
+  background-color: var(--bg-1) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 2px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
 }
-
 .ant-select-item {
-  color: #ffffff !important;
+  color: var(--fg-1) !important;
+  border-radius: 0 !important;
 }
-
-.ant-select-item-option-selected,
+.ant-select-item-option-selected {
+  background-color: var(--bg-2) !important;
+  color: var(--fg-0) !important;
+}
 .ant-select-item-option-active {
-  background-color: #111 !important;
+  background-color: var(--bg-2) !important;
 }
 
-/* Fix for pagination size changer */
-.ant-pagination-options .ant-select {
-  color: #ffffff !important;
-}
-
-.ant-select-dropdown .ant-select-item {
-  color: #ffffff !important;
-  padding: 5px 12px;
-}
-
-.ant-select-dropdown .ant-select-item-option-selected {
-  background-color: #1890ff !important;
-  color: #ffffff !important;
-}
-
-.ant-select-dropdown .ant-select-item-option-active {
-  background-color: #303030 !important;
-}
-
-/* Ensure dropdown is visible and properly styled */
-.ant-select-dropdown {
-  background-color: #1f1f1f !important;
-  border: 1px solid #303030 !important;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5) !important;
-}
-
-/* Custom styles for Leaflet map in dark mode */
-.leaflet-container {
-  background-color: oklch(0.15 0 0);
-}
-
-.leaflet-popup-content-wrapper {
+/* Table tactical styling */
+.ant-table {
   background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
-  color: oklch(0.9 0 0) !important;
+}
+.ant-table-thead > tr > th {
+  background: var(--bg-1) !important;
+  color: var(--fg-2) !important;
+  font-size: var(--text-2xs) !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  border-bottom: 1px solid var(--line) !important;
+  padding: 8px 12px !important;
+}
+.ant-table-tbody > tr > td {
+  background: transparent !important;
+  border-bottom: 1px solid var(--line) !important;
+  padding: 8px 12px !important;
+  color: var(--fg-0) !important;
+}
+.ant-table-tbody > tr:hover > td {
+  background: var(--bg-1) !important;
+}
+.ant-table-row.row-selected > td {
+  background: var(--bg-2) !important;
+  box-shadow: inset 2px 0 0 var(--accent) !important;
+}
+.ant-table-row.row-selected:hover > td {
+  background: var(--bg-2) !important;
+}
+.ant-table-cell-fix-left,
+.ant-table-cell-fix-right {
+  background: var(--bg-0) !important;
+}
+.ant-table-filter-trigger {
+  color: var(--fg-2) !important;
 }
 
-.leaflet-popup-tip {
-  background: oklch(0.15 0 0) !important;
-  border: 1px solid oklch(0.3 0 0) !important;
+/* Tactical markers */
+.tm-icon {
+  background: transparent !important;
+  border: 0 !important;
+}
+.tm {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.tm-label {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 2px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--fg-0);
+  background: color-mix(in oklch, var(--bg-0) 85%, transparent);
+  border: 1px solid var(--line);
+  padding: 2px 6px;
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+  z-index: 500;
+}
+.tm:hover .tm-label,
+.tm[data-selected="true"] .tm-label {
+  opacity: 1;
+}
+.tm-pulse {
+  transform-origin: center;
+  animation: tm-pulse 1.6s ease-out infinite;
+}
+@keyframes tm-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 
-.leaflet-popup-close-button {
-  color: oklch(0.7 0 0) !important;
+/* Flatten AntD global radii and borders */
+.ant-card,
+.ant-btn,
+.ant-input,
+.ant-select-selector,
+.ant-modal-content,
+.ant-drawer-content,
+.ant-picker,
+.ant-tag {
+  border-radius: 2px !important;
 }
-
-.leaflet-popup-close-button:hover {
-  color: oklch(0.9 0 0) !important;
+.ant-card {
+  background: transparent !important;
+  border-color: var(--line) !important;
 }
-
-.leaflet-control-zoom a {
-  background-color: oklch(0.2 0 0) !important;
-  color: oklch(0.9 0 0) !important;
-  border-color: oklch(0.3 0 0) !important;
-}
-
-.leaflet-control-zoom a:hover {
-  background-color: oklch(0.25 0 0) !important;
-}
-
-/* Glowing earthquake markers */
-.earthquake-marker-1 path,
-.earthquake-marker-2 path {
-  filter: drop-shadow(0 0 4px rgba(0, 200, 255, 0.7));
-}
-
-.earthquake-marker-3 path {
-  filter: drop-shadow(0 0 8px rgba(0, 200, 255, 0.8));
-}
-
-.earthquake-marker-4 path {
-  filter: drop-shadow(0 0 12px rgba(0, 200, 255, 0.85));
-}
-
-.earthquake-marker-5 path {
-  filter: drop-shadow(0 0 16px rgba(0, 200, 255, 0.9));
-}
-
-.earthquake-marker-6 path,
-.earthquake-marker-7 path,
-.earthquake-marker-8 path,
-.earthquake-marker-9 path {
-  filter: drop-shadow(0 0 25px rgba(0, 200, 255, 1));
+.ant-card-head {
+  border-bottom-color: var(--line) !important;
+  background: transparent !important;
 }

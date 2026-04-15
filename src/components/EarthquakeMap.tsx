@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Spin, Typography, Tag, Empty } from 'antd';
-import { Earthquake, getMagnitudeColor, getMagnitudeSize } from '@/services/earthquakeService';
 import dynamic from 'next/dynamic';
+import { Earthquake } from '@/services/earthquakeService';
 
-// Define the interface for the MapComponent props
 interface MapComponentProps {
   earthquakes: Earthquake[];
   selectedEarthquake: Earthquake | null;
@@ -14,13 +12,17 @@ interface MapComponentProps {
   mapZoom: number;
 }
 
-// Dynamically import the entire map component with no SSR
 const MapWithNoSSR = dynamic<MapComponentProps>(
-  () => import('./MapComponent').then(mod => mod.default),
-  { ssr: false, loading: () => <div className="h-full w-full flex items-center justify-center">Loading map...</div> }
+  () => import('./MapComponent').then((mod) => mod.default),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full w-full flex items-center justify-center mono text-[11px] text-fg-2">
+        Loading map…
+      </div>
+    ),
+  }
 );
-
-const { Title, Text } = Typography;
 
 interface EarthquakeMapProps {
   earthquakes: Earthquake[];
@@ -29,63 +31,52 @@ interface EarthquakeMapProps {
   onEarthquakeSelect: (earthquake: Earthquake) => void;
 }
 
-// MapUpdater is now part of MapComponent
+const TURKEY_CENTER: [number, number] = [39.0, 35.0];
+const TURKEY_ZOOM = 6;
 
 const EarthquakeMap: React.FC<EarthquakeMapProps> = ({
   earthquakes,
   loading,
   selectedEarthquake,
-  onEarthquakeSelect
+  onEarthquakeSelect,
 }) => {
-  // Turkey's center coordinates
-  const TURKEY_CENTER: [number, number] = [39.0, 35.0];
-  const TURKEY_ZOOM = 6;
-  
-  const [mapCenter, setMapCenter] = useState<[number, number]>(TURKEY_CENTER);
-  const [mapZoom, setMapZoom] = useState(TURKEY_ZOOM);
-  
-  // Reset map to Turkey center when component reloads
-  useEffect(() => {
-    setMapCenter(TURKEY_CENTER);
-    setMapZoom(TURKEY_ZOOM);
-  }, []);
+  const [mapCenter] = useState<[number, number]>(TURKEY_CENTER);
+  const [mapZoom] = useState(TURKEY_ZOOM);
+
+  // Guard against hydration mismatch in dev
+  useEffect(() => {}, []);
 
   return (
-    <Card 
-      className="h-full shadow-md bg-transparent overflow-hidden" 
-      styles={{ 
-        body: { 
-          padding: 0, 
-          height: '100%',
-          backgroundColor: 'transparent'
-        } 
-      }}
-      variant="outlined"
-      title={
-        <div className="flex justify-between items-center">
-          <Title level={5} className="m-0">Earthquake Map</Title>
-          {loading && <Spin size="small" />}
+    <div className="relative h-full w-full border border-line bg-bg-1 overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 z-[400] flex items-center justify-between px-3 py-2 border-b border-line bg-bg-1/95 backdrop-blur-sm">
+        <div className="mono text-[10px] uppercase tracking-[0.1em] text-fg-2">
+          Live Map
         </div>
-      }
-    >
-      {earthquakes.length > 0 ? (
-        <div className="h-full w-full" style={{ height: 'calc(100% - 20px)' }}>
-          <MapWithNoSSR 
-            earthquakes={earthquakes}
-            selectedEarthquake={selectedEarthquake}
-            onEarthquakeSelect={onEarthquakeSelect}
-            mapCenter={mapCenter}
-            mapZoom={mapZoom}
+        <div className="mono text-[10px] text-fg-2 flex items-center gap-2">
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{
+              background: loading ? 'var(--accent)' : 'var(--mag-low)',
+              animation: loading ? 'tm-pulse 1.6s ease-out infinite' : undefined,
+            }}
           />
+          <span>{earthquakes.length} events</span>
         </div>
-      ) : (
-        <Empty 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
-          description="No earthquake data available"
-          className="h-full flex flex-col justify-center"
+      </div>
+      {earthquakes.length > 0 ? (
+        <MapWithNoSSR
+          earthquakes={earthquakes}
+          selectedEarthquake={selectedEarthquake}
+          onEarthquakeSelect={onEarthquakeSelect}
+          mapCenter={mapCenter}
+          mapZoom={mapZoom}
         />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center mono text-[11px] text-fg-2">
+          No earthquake data
+        </div>
       )}
-    </Card>
+    </div>
   );
 };
 
