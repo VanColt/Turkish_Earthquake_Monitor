@@ -20,8 +20,6 @@ const TURKEY_BOUNDS: LngLatBoundsLike = [
   [45.1, 42.3],
 ];
 
-const IDLE_LABEL_MS = 60_000; // show city labels after 60s of no interaction
-
 const DARK_STYLE: StyleSpecification = {
   version: 8,
   projection: { type: 'globe' },
@@ -67,7 +65,6 @@ const DARK_STYLE: StyleSpecification = {
       id: 'labels',
       type: 'raster',
       source: 'labels',
-      layout: { visibility: 'none' },
       paint: { 'raster-opacity': 0.85 },
     },
   ],
@@ -94,7 +91,6 @@ function toGeoJSON(earthquakes: Earthquake[], latestId: string | null) {
 export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const idleTimerRef = useRef<number | null>(null);
   const earthquakesRef = useRef<Earthquake[]>(earthquakes);
 
   useEffect(() => {
@@ -130,20 +126,57 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
       console.error('[globe] maplibre error:', e.error ?? e);
     });
 
-    // Toggle the city-labels layer after N ms of no interaction.
-    const scheduleIdleLabels = () => {
-      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
-      if (!map.getLayer('labels')) return;
-      // Hide while the user is interacting.
-      map.setLayoutProperty('labels', 'visibility', 'none');
-      idleTimerRef.current = window.setTimeout(() => {
-        if (map.getLayer('labels')) {
-          map.setLayoutProperty('labels', 'visibility', 'visible');
-        }
-      }, IDLE_LABEL_MS);
-    };
-
     map.on('load', () => {
+      // Turkey boundary — subtle fill + amber outline to make TR pop.
+      map.addSource('tr-border', {
+        type: 'geojson',
+        data: '/turkey.geojson',
+      });
+
+      map.addLayer(
+        {
+          id: 'tr-fill',
+          type: 'fill',
+          source: 'tr-border',
+          paint: {
+            'fill-color': '#f0c14a',
+            'fill-opacity': 0.04,
+          },
+        },
+        'labels'
+      );
+
+      // Outer glow (wider, very soft)
+      map.addLayer(
+        {
+          id: 'tr-glow',
+          type: 'line',
+          source: 'tr-border',
+          paint: {
+            'line-color': '#f0c14a',
+            'line-width': 6,
+            'line-opacity': 0.12,
+            'line-blur': 4,
+          },
+        },
+        'labels'
+      );
+
+      // Crisp inner line
+      map.addLayer(
+        {
+          id: 'tr-line',
+          type: 'line',
+          source: 'tr-border',
+          paint: {
+            'line-color': '#f0c14a',
+            'line-width': 1.2,
+            'line-opacity': 0.75,
+          },
+        },
+        'labels'
+      );
+
       // Earthquake source + layers
       map.addSource('quakes', { type: 'geojson', data: toGeoJSON([], null) });
 
@@ -223,19 +256,9 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
 
       // Ensure we are framed on Turkey precisely after load.
       map.fitBounds(TURKEY_BOUNDS, { padding: 48, duration: 0 });
-
-      // Start the idle countdown and reset it on any interaction.
-      scheduleIdleLabels();
-      const resetIdle = () => scheduleIdleLabels();
-      map.on('movestart', resetIdle);
-      map.on('zoomstart', resetIdle);
-      map.on('dragstart', resetIdle);
-      map.on('click', resetIdle);
-      map.on('touchstart', resetIdle);
     });
 
     return () => {
-      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
       map.remove();
       mapRef.current = null;
     };
