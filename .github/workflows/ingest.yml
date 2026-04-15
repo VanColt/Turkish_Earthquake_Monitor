@@ -16,15 +16,15 @@ jobs:
     steps:
       - name: Trigger ingestion endpoint
         env:
-          INGEST_URL: ${{ secrets.INGEST_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          INGEST_URL: https://kandilli.vercel.app/api/cron/ingest
+          KANDILLI_SECRET: ${{ secrets.KANDILLI_SECRET }}
         run: |
-          if [ -z "$INGEST_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "Missing INGEST_URL or CRON_SECRET secret" >&2
+          if [ -z "$KANDILLI_SECRET" ]; then
+            echo "Missing KANDILLI_SECRET secret" >&2
             exit 1
           fi
           response=$(curl -sS -o /tmp/body -w '%{http_code}' \
-            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Authorization: Bearer $KANDILLI_SECRET" \
             "$INGEST_URL")
           echo "HTTP $response"
           cat /tmp/body
