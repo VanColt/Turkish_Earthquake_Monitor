@@ -233,7 +233,7 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
           filter: ['==', ['get', 'name'], 'Turkey'],
           paint: {
             'fill-color': '#ffffff',
-            'fill-opacity': 0.06,
+            'fill-opacity': 0.025,
           },
         },
         'water'
