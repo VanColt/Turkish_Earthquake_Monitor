@@ -69,7 +69,7 @@ export default function SettingsPanel({ settings, onChange }: SettingsPanelProps
       {/* Geological overlays */}
       <Section
         label="Geology"
-        help="Active fault lines from the GEM Global Active Faults Database (NAF and EAF visible across Türkiye)."
+        help="Active fault lines colored by slip type. Cyan = strike-slip (NAF, EAF). Violet = normal (Aegean extension). Warm = reverse / thrust. Source: GEM Global Active Faults Database."
       >
         <Toggle
           label="Active fault lines"

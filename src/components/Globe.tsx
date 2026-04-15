@@ -409,31 +409,45 @@ export default function Globe({
 
     map.on('load', () => {
       // Active fault lines — GEM Global Active Faults DB filtered to Türkiye region.
+      // Two layers: a wide soft halo for legibility on dark land, then a thin
+      // hairline on top. Color by slip type so users see the fault classification.
       map.addSource('faults', { type: 'geojson', data: '/faults.geojson' });
 
-      // Soft glow under the fault line so it reads against dark land
+      const FAULT_COLOR: maplibregl.ExpressionSpecification = [
+        'match',
+        ['get', 'slip_type'],
+        ['Strike-Slip', 'Dextral', 'Sinistral', 'Dextral-Reverse', 'Dextral-Normal', 'Sinistral-Reverse', 'Sinistral-Normal'],
+        '#7adcd6', // cyan — strike-slip (NAF, EAF)
+        ['Normal', 'Normal-Sinistral', 'Normal-Dextral', 'Normal_Faulting'],
+        '#a4a8e8', // violet — normal (Aegean extension)
+        ['Reverse', 'Reverse-Dextral', 'Reverse-Sinistral', 'Thrust'],
+        '#e8b97a', // warm — reverse / thrust
+        '#9090a0', // gray fallback
+      ];
+
+      // Halo — soft and wide so the line reads against the dark land
       map.addLayer({
         id: 'faults-glow',
         type: 'line',
         source: 'faults',
         layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#e84545',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 2, 7, 6, 12, 14],
-          'line-opacity': 0.18,
-          'line-blur': 4,
+          'line-color': FAULT_COLOR,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 1.4, 7, 3, 12, 7],
+          'line-opacity': 0.20,
+          'line-blur': 2.5,
         },
       });
 
-      // Crisp inner stroke
+      // Crisp inner hairline
       map.addLayer({
         id: 'faults-line',
         type: 'line',
         source: 'faults',
         layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#f5cf5a',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 0.5, 7, 1.2, 12, 2.4],
+          'line-color': FAULT_COLOR,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 0.4, 7, 0.9, 12, 1.6],
           'line-opacity': 0.85,
         },
       });
