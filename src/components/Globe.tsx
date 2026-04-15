@@ -448,83 +448,77 @@ export default function Globe({
         6, '#e84545',
       ];
 
-      // 0. "Felt-shaking" heatmap.
-      //
-      // Models perceived intensity (rough MMI-style approximation):
-      // - heatmap-weight scales with seismic energy (10^(1.5*M)), so a
-      //   single M6 contributes far more than dozens of M3s.
-      // - heatmap-radius is data-driven by magnitude — each event's
-      //   influence reaches as far as people can actually feel it.
-      // - When clustered events overlap, MapLibre adds their densities
-      //   together, producing visibly hotter zones over active regions.
+      // "Felt-shaking" heatmap.
+      // Each event contributes a soft zone whose radius scales with magnitude
+      // (proxy for felt-distance) and weight scales with magnitude (so big
+      // events still dominate). When zones overlap, MapLibre sums densities,
+      // producing brighter regions where activity has clustered.
       map.addLayer({
         id: 'quakes-heat',
         type: 'heatmap',
         source: 'quakes',
         layout: { visibility: 'none' },
         paint: {
-          // Energy-proxy weight. Normalized so M7 ≈ 1.
+          // Curved weight — every event registers, but bigger events are
+          // dramatically more influential.
           'heatmap-weight': [
             'interpolate', ['linear'], ['get', 'mag'],
-            0, 0,
-            2, 0.005,
-            3, 0.03,
-            4, 0.10,
-            5, 0.30,
-            6, 0.70,
-            7, 1.0,
+            0, 0.25,
+            2, 0.45,
+            3, 0.70,
+            4, 1.0,
+            5, 1.6,
+            6, 2.4,
+            7, 3.2,
           ],
-          // Per-feature radius based on real felt-distance scaling,
-          // multiplied by a zoom factor so the visualization is legible
-          // at country-fit and city-zoom both.
+          // Per-feature radius scaled by magnitude × zoom.
           'heatmap-radius': [
             'interpolate', ['exponential', 2], ['zoom'],
             3, [
               'interpolate', ['linear'], ['get', 'mag'],
-              2, 2,
-              3, 5,
-              4, 12,
-              5, 28,
-              6, 55,
-              7, 110,
+              2, 6,
+              3, 12,
+              4, 22,
+              5, 40,
+              6, 70,
+              7, 130,
             ],
             6, [
               'interpolate', ['linear'], ['get', 'mag'],
-              2, 6,
-              3, 14,
-              4, 35,
-              5, 80,
-              6, 160,
-              7, 320,
+              2, 18,
+              3, 32,
+              4, 60,
+              5, 110,
+              6, 200,
+              7, 380,
             ],
             10, [
               'interpolate', ['linear'], ['get', 'mag'],
-              2, 16,
-              3, 40,
-              4, 100,
-              5, 220,
-              6, 440,
-              7, 880,
+              2, 40,
+              3, 75,
+              4, 140,
+              5, 260,
+              6, 480,
+              7, 920,
             ],
           ],
           'heatmap-intensity': [
             'interpolate', ['linear'], ['zoom'],
-            0, 0.5, 6, 1, 10, 1.6,
+            0, 1, 4, 1.4, 8, 2.0, 12, 2.8,
           ],
-          // Density → MMI-style color ramp:
-          //   transparent (not felt) → mint (slight) → amber (light)
-          //   → orange (moderate) → red (strong / damaging)
+          // Density → MMI-style color ramp. Visible from the very first
+          // bit of density so single events still show up.
           'heatmap-color': [
             'interpolate', ['linear'], ['heatmap-density'],
-            0,    'rgba(0,0,0,0)',
-            0.05, 'rgba(95, 216, 184, 0.18)',
-            0.20, 'rgba(95, 216, 184, 0.40)',
-            0.40, 'rgba(245, 207, 90, 0.60)',
-            0.65, 'rgba(244, 138, 58, 0.78)',
-            0.85, 'rgba(232, 69, 69, 0.88)',
-            1,    'rgba(232, 69, 69, 0.95)',
+            0,    'rgba(0, 0, 0, 0)',
+            0.02, 'rgba(95, 216, 184, 0.45)',
+            0.15, 'rgba(95, 216, 184, 0.70)',
+            0.35, 'rgba(245, 207, 90, 0.80)',
+            0.55, 'rgba(244, 138, 58, 0.88)',
+            0.80, 'rgba(232, 69, 69, 0.92)',
+            1,    'rgba(232, 69, 69, 1)',
           ],
-          'heatmap-opacity': 0.85,
+          'heatmap-opacity': 0.95,
         },
       });
 
