@@ -320,6 +320,7 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
       renderWorldCopies: false,
       dragRotate: false,
       pitchWithRotate: false,
+      maxPitch: 0,
     });
     map.touchZoomRotate.disableRotation();
     mapRef.current = map;
@@ -363,6 +364,34 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
       // Earthquake source + layers
       map.addSource('quakes', { type: 'geojson', data: toGeoJSON([], null) });
 
+      // Color ramp by magnitude — single source of truth
+      const MAG_COLOR: maplibregl.ExpressionSpecification = [
+        'interpolate',
+        ['linear'],
+        ['get', 'mag'],
+        0, '#5fd8b8',
+        3, '#f5cf5a',
+        5, '#f48a3a',
+        6, '#e84545',
+      ];
+
+      // 1. Outer glow — soft halo so events are spottable from afar
+      map.addLayer({
+        id: 'quakes-glow',
+        type: 'circle',
+        source: 'quakes',
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['get', 'mag'],
+            0, 14, 3, 20, 5, 32, 6, 46, 8, 64,
+          ],
+          'circle-color': MAG_COLOR,
+          'circle-opacity': 0.12,
+          'circle-blur': 0.8,
+        },
+      });
+
+      // 2. Outer ring — the precision boundary
       map.addLayer({
         id: 'quakes-ring',
         type: 'circle',
@@ -370,21 +399,19 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
         paint: {
           'circle-radius': [
             'interpolate', ['linear'], ['get', 'mag'],
-            0, 4, 3, 7, 5, 14, 6, 22, 8, 34,
+            0, 6, 3, 10, 5, 18, 6, 28, 8, 42,
           ],
           'circle-color': 'transparent',
-          'circle-stroke-width': ['case', ['==', ['get', 'latest'], 1], 2, 1],
-          'circle-stroke-color': [
-            'interpolate', ['linear'], ['get', 'mag'],
-            0, '#7be3c5', 3, '#f0c14a', 5, '#f28a3d', 6, '#e34848',
-          ],
+          'circle-stroke-color': MAG_COLOR,
+          'circle-stroke-width': ['case', ['==', ['get', 'latest'], 1], 2.2, 1.4],
           'circle-stroke-opacity': [
             'interpolate', ['linear'], ['get', 'depth'],
-            0, 1, 100, 0.7, 300, 0.4,
+            0, 1, 100, 0.85, 300, 0.55,
           ],
         },
       });
 
+      // 3. Solid core — clearly readable point
       map.addLayer({
         id: 'quakes-core',
         type: 'circle',
@@ -392,15 +419,31 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
         paint: {
           'circle-radius': [
             'interpolate', ['linear'], ['get', 'mag'],
-            0, 1.5, 3, 2.5, 5, 4, 6, 6,
+            0, 2.4, 3, 3.6, 5, 5.5, 6, 8,
           ],
-          'circle-color': [
-            'interpolate', ['linear'], ['get', 'mag'],
-            0, '#7be3c5', 3, '#f0c14a', 5, '#f28a3d', 6, '#e34848',
-          ],
+          'circle-color': MAG_COLOR,
+          'circle-stroke-color': '#0a0a12',
+          'circle-stroke-width': 1,
         },
       });
 
+      // 4. White center pinpoint — only visible on M5+, makes big events pop
+      map.addLayer({
+        id: 'quakes-center',
+        type: 'circle',
+        source: 'quakes',
+        filter: ['>=', ['get', 'mag'], 4.5],
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['get', 'mag'],
+            4.5, 1, 6, 2, 8, 3,
+          ],
+          'circle-color': '#ffffff',
+          'circle-opacity': 0.95,
+        },
+      });
+
+      // 5. Pulse — the LATEST event only, draws the eye to what's new
       map.addLayer({
         id: 'quakes-pulse',
         type: 'circle',
@@ -409,22 +452,23 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
         paint: {
           'circle-radius': [
             'interpolate', ['linear'], ['get', 'mag'],
-            0, 10, 5, 24, 7, 38,
+            0, 18, 5, 36, 7, 56,
           ],
           'circle-color': 'transparent',
-          'circle-stroke-color': '#f0c14a',
-          'circle-stroke-width': 1,
-          'circle-stroke-opacity': 0.6,
+          'circle-stroke-color': '#f5cf5a',
+          'circle-stroke-width': 1.2,
+          'circle-stroke-opacity': 0.7,
         },
       });
 
-      // Cursor feedback
-      map.on('mouseenter', 'quakes-core', () => (map.getCanvas().style.cursor = 'pointer'));
-      map.on('mouseleave', 'quakes-core', () => (map.getCanvas().style.cursor = ''));
-      map.on('mouseenter', 'quakes-ring', () => (map.getCanvas().style.cursor = 'pointer'));
-      map.on('mouseleave', 'quakes-ring', () => (map.getCanvas().style.cursor = ''));
+      // Cursor + click — bind on the most "outside" hit-target (glow/ring)
+      // so users don't have to land on the tiny core.
+      const HIT_LAYERS = ['quakes-glow', 'quakes-ring', 'quakes-core'];
+      for (const layer of HIT_LAYERS) {
+        map.on('mouseenter', layer, () => (map.getCanvas().style.cursor = 'pointer'));
+        map.on('mouseleave', layer, () => (map.getCanvas().style.cursor = ''));
+      }
 
-      // Click to select
       const onClick = (
         e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }
       ) => {
@@ -434,8 +478,9 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
         const match = earthquakesRef.current.find((q) => q.earthquake_id === id);
         if (match) onSelect(match);
       };
-      map.on('click', 'quakes-core', onClick);
-      map.on('click', 'quakes-ring', onClick);
+      for (const layer of HIT_LAYERS) {
+        map.on('click', layer, onClick);
+      }
 
       // Ensure we are framed on Turkey precisely after load.
       map.fitBounds(TURKEY_BOUNDS, { padding: 48, duration: 0 });
@@ -474,7 +519,7 @@ export default function Globe({ earthquakes, selected, onSelect }: GlobeProps) {
     const map = mapRef.current;
     if (!map || !selected) return;
     const [lng, lat] = selected.geojson.coordinates;
-    map.flyTo({ center: [lng, lat], zoom: 7.2, duration: 1600, pitch: 25, bearing: 0 });
+    map.flyTo({ center: [lng, lat], zoom: 7.2, duration: 1600, pitch: 0, bearing: 0 });
   }, [selected]);
 
   return (
