@@ -2,96 +2,149 @@
 
 # Turkish Earthquake Monitor
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Ant Design](https://img.shields.io/badge/Ant%20Design-5.0-blue?style=for-the-badge&logo=ant-design)](https://ant.design/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![MapLibre](https://img.shields.io/badge/MapLibre%20GL-5-396cb2?style=for-the-badge&logo=maplibre)](https://maplibre.org/)
+[![Drizzle](https://img.shields.io/badge/Drizzle%20ORM-libsql-c5f74f?style=for-the-badge)](https://orm.drizzle.team/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-**Real-time visualization of earthquake data across Turkey**
+**Real-time, interactive visualization of seismic activity across Türkiye**
 
-[Demo](https://kandilli.vercel.app) | [Report Bug](https://github.com/VanColt/Turkish_Earthquake_Monitor/issues) | [Request Feature](https://github.com/VanColt/Turkish_Earthquake_Monitor/issues)
+[Demo](https://kandilli.vercel.app) · [Report Bug](https://github.com/VanColt/Turkish_Earthquake_Monitor/issues) · [Request Feature](https://github.com/VanColt/Turkish_Earthquake_Monitor/issues)
 
 </div>
 
-## ✨ Features
+---
 
-- **Real-time Data**: Visualize the latest earthquake data from across Turkey
-- **Interactive Map**: Explore earthquakes with an interactive map featuring gradient markers that indicate magnitude and depth
-- **Comprehensive Data Table**: Sort and filter earthquake data with ease
-- **Statistical Analysis**: View magnitude distribution and other key metrics
-- **Detailed Information**: Get in-depth information about each earthquake, including nearby cities and airports
-- **Responsive Design**: Optimized for both desktop and mobile devices
+## Overview
 
-## 🖼️ Screenshots
+Turkish Earthquake Monitor ingests live data from the Kandilli Observatory and renders it on a custom MapLibre GL globe focused on Türkiye. Events are persisted to a libSQL database via a scheduled cron ingest, enriched with contextual data (weather at event time, nearest airports, active fault segments), and surfaced through a minimal, monochromatic inspector UI.
 
-<div align="center">
-<img src="public/screenshot.png" alt="Turkish Earthquake Monitor Screenshot" width="800" />
-</div>
+## Features
 
-## 🚀 Getting Started
+### Visualization
+- **MapLibre GL globe** with a Türkiye-focused wash, enhanced landcover, urban areas, highways, and province lines — camera pitch is locked so selection never tilts the view.
+- **Rich event markers** with glow, ring, core, white center, and pulse animation; marker gradient encodes magnitude and depth.
+- **Felt-shaking heatmap** — scientifically grounded, energy-weighted model (10^1.5·M) with magnitude-driven radius (M5 ≈ 150 km). Clusters merge into hot zones; MMI-anchored color weights (cool M2–M3, red reserved for M5+ or strong clusters).
+- **Active fault overlay** — GEM Global Active Faults DB (1,060 segments in the TR region), colored by slip type (cyan strike-slip, violet normal, warm thrust), rendered as thin hairlines so they read as context.
+
+### Event Inspector
+- **Türkiye-local DD/MM/YYYY** timestamps throughout, with a prominent local-time block.
+- **Weather at event time + now** via Open-Meteo.
+- **Nearest airports** (deduped for repeated API codes like IST).
+- Magnitude, depth, and source provider details.
+
+### Controls
+- **Settings panel**: view mode (markers / heatmap / both), magnitude filter, layer toggles (faults, airports, etc.).
+- **Full-screen toggle** alongside socials in the top bar, with icon swap on state.
+- Zoom controls in the bottom-right rail; status bar removed for a cleaner canvas.
+
+### Data Pipeline
+- **libSQL / Turso** storage with Drizzle ORM schema and migrations.
+- **Cron ingest** (`/api/cron`) pulls Kandilli events on schedule (see `vercel.json`) and upserts into the DB.
+- **REST endpoint** (`/api/earthquakes`) serves the feed to the client.
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router, Turbopack) · React 19
+- **Language**: TypeScript 5
+- **Map**: MapLibre GL 5
+- **UI**: Ant Design 5 · Tailwind CSS 4
+- **Database**: libSQL (Turso-compatible) via Drizzle ORM
+- **Scheduling**: Vercel Cron
+- **Data sources**:
+  - [Kandilli Observatory API](https://github.com/orhanayd/kandilli-rasathanesi-api) by [Orhan Aydoğdu](https://github.com/orhanayd)
+  - [Open-Meteo](https://open-meteo.com/) — historical + current weather
+  - [GEM Global Active Faults Database](https://github.com/GEMScienceTools/gem-global-active-faults)
+
+## Getting Started
 
 ### Prerequisites
+- Node.js 18.17+ (20+ recommended)
+- A libSQL database URL (local file or Turso)
 
-- Node.js 18.0 or later
-- npm or yarn
+### Setup
 
-### Installation
+```sh
+git clone https://github.com/VanColt/Turkish_Earthquake_Monitor.git
+cd Turkish_Earthquake_Monitor
+npm install
+```
 
-1. Clone the repository
-   ```sh
-   git clone https://github.com/VanColt/Turkish_Earthquake_Monitor.git
-   ```
+Create a `.env.local`:
 
-2. Install dependencies
-   ```sh
-   cd Turkish_Earthquake_Monitor
-   npm install
-   ```
+```env
+DATABASE_URL=file:./local.db
+# or for Turso:
+# DATABASE_URL=libsql://<your-db>.turso.io
+# DATABASE_AUTH_TOKEN=<token>
+CRON_SECRET=<random-string>
+```
 
-3. Start the development server
-   ```sh
-   npm run dev
-   ```
+Push the schema and run:
 
-4. Open [http://localhost:3000](http://localhost:3000) with your browser
+```sh
+npm run db:push
+npm run dev
+```
 
-## 🛠️ Built With
+Open [http://localhost:3000](http://localhost:3000).
 
-- [Next.js](https://nextjs.org/) - The React framework
-- [TypeScript](https://www.typescriptlang.org/) - For type safety
-- [Ant Design](https://ant.design/) - UI component library
-- [Tailwind CSS](https://tailwindcss.com/) - For styling
-- [Leaflet](https://leafletjs.com/) - For interactive maps
-- [Axios](https://axios-http.com/) - For API requests
+### Scripts
 
-## 📊 Data Source
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Start Next.js with Turbopack |
+| `npm run build` | Production build |
+| `npm run start` | Serve production build |
+| `npm run lint` | ESLint |
+| `npm run db:generate` | Generate Drizzle migrations |
+| `npm run db:migrate` | Apply migrations |
+| `npm run db:push` | Push schema directly (dev) |
+| `npm run db:studio` | Open Drizzle Studio |
 
-This project uses the Kandilli Observatory API provided by [Orhan Aydoğdu](https://github.com/orhanayd). The API provides real-time earthquake data from the Kandilli Observatory and Earthquake Research Institute.
+## Project Structure
 
-- API Repository: [kandilli-rasathanesi-api](https://github.com/orhanayd/kandilli-rasathanesi-api)
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── cron/          # Scheduled Kandilli ingest
+│   │   └── earthquakes/   # Feed endpoint
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── Globe.tsx          # MapLibre globe + markers + heatmap + faults
+│   ├── EventFeed.tsx
+│   ├── EventInspector.tsx # Local time, weather, airports
+│   ├── SettingsPanel.tsx
+│   └── TopBar.tsx
+├── db/                    # Drizzle client + schema
+├── lib/                   # datetime, kandilli, magnitude, weather, settings
+└── services/
+    └── earthquakeService.ts
+```
 
-## ⚠️ Disclaimer
+## Disclaimer
 
-**English:**  
-Commercial Use Warning:  
-The information, data, and maps provided cannot be used for commercial purposes in any way without the written permission and approval of the Rectorate of Boğaziçi University.
+**English** — Commercial Use Warning: The information, data, and maps provided cannot be used for commercial purposes in any way without the written permission and approval of the Rectorate of Boğaziçi University.
 
-**Turkish:**  
-Ticari kullanım hakkında uyarı:  
-Söz konusu bilgi, veri ve haritalar Boğaziçi Üniversitesi Rektörlüğü'nün yazılı izni ve onayı olmadan herhangi bir şekilde ticari amaçlı kullanılamaz.
+**Türkçe** — Ticari kullanım uyarısı: Söz konusu bilgi, veri ve haritalar Boğaziçi Üniversitesi Rektörlüğü'nün yazılı izni ve onayı olmadan herhangi bir şekilde ticari amaçlı kullanılamaz.
 
-## 📄 License
+## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See `LICENSE`.
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
-- [Orhan Aydoğdu](https://github.com/orhanayd) for providing the Kandilli Observatory API
-- [Kandilli Observatory and Earthquake Research Institute](http://www.koeri.boun.edu.tr/) for the earthquake data
-- [Boğaziçi University](http://www.boun.edu.tr/) for supporting earthquake research
+- [Orhan Aydoğdu](https://github.com/orhanayd) — Kandilli Observatory API
+- [Kandilli Observatory and Earthquake Research Institute](http://www.koeri.boun.edu.tr/) — seismic data
+- [Boğaziçi University](http://www.boun.edu.tr/) — supporting earthquake research
+- [GEM Foundation](https://www.globalquakemodel.org/) — Global Active Faults Database
+- [Open-Meteo](https://open-meteo.com/) — weather data
 
-## 📬 Contact
+## Contact
 
 - GitHub: [@VanColt](https://github.com/VanColt)
 - LinkedIn: [Mert Uysal](https://www.linkedin.com/in/mert-uysal/)
@@ -100,6 +153,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <div align="center">
 
-Made with ❤️ in Turkey with a hope of never to use it for emergency purposes.
+Made in Türkiye, with the hope it never has to be used in an emergency.
 
 </div>
