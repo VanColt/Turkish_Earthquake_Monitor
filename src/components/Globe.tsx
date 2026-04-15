@@ -49,14 +49,16 @@ class IconButtonControl implements maplibregl.IControl {
   }
 }
 
+// Solid filled sliders glyph at 14×14 — same visual weight as the GitHub /
+// LinkedIn icons in the top bar.
 const SETTINGS_SVG = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-    <line x1="2.5" y1="4.5" x2="13.5" y2="4.5" />
-    <line x1="2.5" y1="8" x2="13.5" y2="8" />
-    <line x1="2.5" y1="11.5" x2="13.5" y2="11.5" />
-    <circle cx="6" cy="4.5" r="1.6" fill="var(--panel)" />
-    <circle cx="10" cy="8" r="1.6" fill="var(--panel)" />
-    <circle cx="6" cy="11.5" r="1.6" fill="var(--panel)" />
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+    <rect x="2" y="3.5" width="12" height="1.2" rx="0.6" />
+    <rect x="2" y="7.4" width="12" height="1.2" rx="0.6" />
+    <rect x="2" y="11.3" width="12" height="1.2" rx="0.6" />
+    <circle cx="11" cy="4.1" r="2.1" />
+    <circle cx="6" cy="8" r="2.1" />
+    <circle cx="11" cy="11.9" r="2.1" />
   </svg>
 `;
 
