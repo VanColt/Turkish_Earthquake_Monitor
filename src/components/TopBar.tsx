@@ -67,7 +67,7 @@ export default function TopBar({ loading, eventCount, onAbout }: TopBarProps) {
         </div>
       </div>
 
-      {/* Right: socials + about */}
+      {/* Right: socials + about + fullscreen */}
       <div className="glass pointer-events-auto flex items-center gap-1 px-2 py-1.5">
         <a
           href="https://github.com/VanColt/Turkish_Earthquake_Monitor"
@@ -87,6 +87,7 @@ export default function TopBar({ loading, eventCount, onAbout }: TopBarProps) {
         >
           <IconLinkedin />
         </a>
+        <FullscreenButton />
         <button
           onClick={onAbout}
           className="display tracked text-[10px] text-ink-1 hover:text-sig transition-colors px-2 py-1 border border-line hover:border-sig ml-1"
@@ -95,6 +96,58 @@ export default function TopBar({ loading, eventCount, onAbout }: TopBarProps) {
         </button>
       </div>
     </div>
+  );
+}
+
+function FullscreenButton() {
+  const [isFs, setIsFs] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setIsFs(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onChange);
+    onChange();
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggle = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+    } else {
+      document.documentElement.requestFullscreen?.();
+    }
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      className="p-1.5 text-ink-2 hover:text-sig transition-colors"
+      title={isFs ? 'Exit full screen' : 'Enter full screen'}
+      aria-label={isFs ? 'Exit full screen' : 'Enter full screen'}
+    >
+      {isFs ? <IconExitFs /> : <IconEnterFs />}
+    </button>
+  );
+}
+
+function IconEnterFs() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 6V2h4" />
+      <path d="M14 6V2h-4" />
+      <path d="M2 10v4h4" />
+      <path d="M14 10v4h-4" />
+    </svg>
+  );
+}
+
+function IconExitFs() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 2v4H2" />
+      <path d="M10 2v4h4" />
+      <path d="M6 14v-4H2" />
+      <path d="M10 14v-4h4" />
+    </svg>
   );
 }
 
