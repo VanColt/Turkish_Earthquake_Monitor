@@ -201,12 +201,28 @@ body {
 .maplibregl-ctrl-group button {
   background: transparent !important;
   color: var(--ink-1) !important;
-  width: 30px !important;
-  height: 30px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  transition: color 120ms ease, background 120ms ease;
 }
 .maplibregl-ctrl-group button:hover {
   background: var(--panel-2) !important;
   color: var(--sig) !important;
+}
+.maplibregl-ctrl-group button > svg,
+.maplibregl-ctrl-group button > span {
+  display: block;
+}
+/* MapLibre's bundled +/- icons use background-image, which our flex centering
+   doesn't help. Force them to render as block + sized to match our SVGs. */
+.maplibregl-ctrl-group button.maplibregl-ctrl-zoom-in,
+.maplibregl-ctrl-group button.maplibregl-ctrl-zoom-out {
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 .maplibregl-ctrl-group button + button {
   border-top: 1px solid var(--line) !important;
