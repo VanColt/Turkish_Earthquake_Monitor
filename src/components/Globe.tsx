@@ -458,16 +458,21 @@ export default function Globe({
         source: 'quakes',
         layout: { visibility: 'none' },
         paint: {
-          // Aggressive curve — M2 barely registers, M5+ dominates.
+          // MMI-anchored: a single event of magnitude M reaches a density
+          // that maps to its real MMI tier. Overlap can push a region UP
+          // a tier (frequency adds concern) but two M3.8 events ≠ one M6.
+          //   M5 alone → orange (MMI VI, moderate)
+          //   M6 alone → red (MMI VII, damaging)
+          //   M7 alone → deep red (MMI VIII+)
           'heatmap-weight': [
-            'interpolate', ['exponential', 1.8], ['get', 'mag'],
-            0, 0.05,
-            2, 0.15,
-            3, 0.35,
-            4, 0.80,
-            5, 1.8,
-            6, 3.5,
-            7, 6.0,
+            'interpolate', ['linear'], ['get', 'mag'],
+            0, 0.01,
+            2, 0.03,
+            3, 0.08,
+            4, 0.20,
+            5, 0.46,
+            6, 0.66,
+            7, 0.95,
           ],
           'heatmap-radius': [
             'interpolate', ['exponential', 2], ['zoom'],
@@ -501,22 +506,22 @@ export default function Globe({
           ],
           'heatmap-intensity': [
             'interpolate', ['linear'], ['zoom'],
-            0, 0.8, 4, 1.2, 8, 1.8, 12, 2.4,
+            0, 1.0, 4, 1.2, 8, 1.5, 12, 1.8,
           ],
-          // MMI-tier color ramp.
-          //   transparent (not felt)
-          //   cool-mint (perceptible, MMI II–III) — should be the dominant color
-          //   amber (light, IV–V)
-          //   orange (moderate, VI) — only at clustered M4+ overlap or M5 events
-          //   red (strong/damaging, VII+) — only at M5+ centers or M6+ anywhere
+          // MMI-tier color ramp tuned so density maps to magnitude tier:
+          //   density ≤ 0.30 → mint (perceptible / light, MMI II–IV)
+          //   density 0.50  → amber (MMI V)
+          //   density 0.65  → orange (MMI VI — single M5 reaches here)
+          //   density 0.85  → red (MMI VII — single M6 reaches here)
+          //   density 1.00  → deep red (MMI VIII+ — single M7 or huge cluster)
           'heatmap-color': [
             'interpolate', ['linear'], ['heatmap-density'],
             0,    'rgba(0, 0, 0, 0)',
-            0.05, 'rgba(95, 216, 184, 0.45)',
-            0.25, 'rgba(95, 216, 184, 0.75)',
+            0.06, 'rgba(95, 216, 184, 0.45)',
+            0.30, 'rgba(95, 216, 184, 0.78)',
             0.50, 'rgba(245, 207, 90, 0.85)',
-            0.72, 'rgba(244, 138, 58, 0.92)',
-            0.88, 'rgba(232, 69, 69, 0.96)',
+            0.65, 'rgba(244, 138, 58, 0.90)',
+            0.85, 'rgba(232, 69, 69, 0.94)',
             1.0,  'rgba(180, 30, 30, 1)',
           ],
           'heatmap-opacity': 0.95,
