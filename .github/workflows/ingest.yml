@@ -23,6 +23,8 @@ jobs:
             echo "Missing KANDILLI_SECRET secret" >&2
             exit 1
           fi
+          # Strip any whitespace/newlines that may have been copy-pasted in.
+          KANDILLI_SECRET=$(printf '%s' "$KANDILLI_SECRET" | tr -d '[:space:]')
           response=$(curl -sS -o /tmp/body -w '%{http_code}' \
             -H "Authorization: Bearer $KANDILLI_SECRET" \
             "$INGEST_URL")
