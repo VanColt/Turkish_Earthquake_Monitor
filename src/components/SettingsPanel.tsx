@@ -14,7 +14,10 @@ export default function SettingsPanel({ settings, onChange }: SettingsPanelProps
   return (
     <div className="flex flex-col gap-5">
       {/* View mode */}
-      <Section label="View mode" help="How earthquake events are drawn on the globe.">
+      <Section
+        label="View mode"
+        help="MARKERS: individual events. HEATMAP: estimated felt-shaking zones — radius scales with magnitude (M5 ≈ 150 km felt-radius), and overlapping clusters merge into hotter regions. BOTH stacks them."
+      >
         <Segmented
           value={settings.viewMode}
           options={[

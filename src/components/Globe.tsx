@@ -448,37 +448,83 @@ export default function Globe({
         6, '#e84545',
       ];
 
-      // 0. Heatmap — toggleable density visualization
+      // 0. "Felt-shaking" heatmap.
+      //
+      // Models perceived intensity (rough MMI-style approximation):
+      // - heatmap-weight scales with seismic energy (10^(1.5*M)), so a
+      //   single M6 contributes far more than dozens of M3s.
+      // - heatmap-radius is data-driven by magnitude — each event's
+      //   influence reaches as far as people can actually feel it.
+      // - When clustered events overlap, MapLibre adds their densities
+      //   together, producing visibly hotter zones over active regions.
       map.addLayer({
         id: 'quakes-heat',
         type: 'heatmap',
         source: 'quakes',
         layout: { visibility: 'none' },
         paint: {
-          // Bigger magnitudes contribute more
+          // Energy-proxy weight. Normalized so M7 ≈ 1.
           'heatmap-weight': [
             'interpolate', ['linear'], ['get', 'mag'],
-            0, 0.05, 3, 0.3, 5, 0.7, 7, 1,
+            0, 0,
+            2, 0.005,
+            3, 0.03,
+            4, 0.10,
+            5, 0.30,
+            6, 0.70,
+            7, 1.0,
           ],
-          // Intensifies as we zoom in
+          // Per-feature radius based on real felt-distance scaling,
+          // multiplied by a zoom factor so the visualization is legible
+          // at country-fit and city-zoom both.
+          'heatmap-radius': [
+            'interpolate', ['exponential', 2], ['zoom'],
+            3, [
+              'interpolate', ['linear'], ['get', 'mag'],
+              2, 2,
+              3, 5,
+              4, 12,
+              5, 28,
+              6, 55,
+              7, 110,
+            ],
+            6, [
+              'interpolate', ['linear'], ['get', 'mag'],
+              2, 6,
+              3, 14,
+              4, 35,
+              5, 80,
+              6, 160,
+              7, 320,
+            ],
+            10, [
+              'interpolate', ['linear'], ['get', 'mag'],
+              2, 16,
+              3, 40,
+              4, 100,
+              5, 220,
+              6, 440,
+              7, 880,
+            ],
+          ],
           'heatmap-intensity': [
             'interpolate', ['linear'], ['zoom'],
-            0, 0.6, 6, 1.2, 10, 2,
+            0, 0.5, 6, 1, 10, 1.6,
           ],
-          // Color ramp — cool at sparse density, hot at peaks
+          // Density → MMI-style color ramp:
+          //   transparent (not felt) → mint (slight) → amber (light)
+          //   → orange (moderate) → red (strong / damaging)
           'heatmap-color': [
             'interpolate', ['linear'], ['heatmap-density'],
-            0, 'rgba(0,0,0,0)',
-            0.15, 'rgba(95, 216, 184, 0.35)',
-            0.4, 'rgba(245, 207, 90, 0.55)',
-            0.7, 'rgba(244, 138, 58, 0.75)',
-            1, 'rgba(232, 69, 69, 0.85)',
+            0,    'rgba(0,0,0,0)',
+            0.05, 'rgba(95, 216, 184, 0.18)',
+            0.20, 'rgba(95, 216, 184, 0.40)',
+            0.40, 'rgba(245, 207, 90, 0.60)',
+            0.65, 'rgba(244, 138, 58, 0.78)',
+            0.85, 'rgba(232, 69, 69, 0.88)',
+            1,    'rgba(232, 69, 69, 0.95)',
           ],
-          'heatmap-radius': [
-            'interpolate', ['linear'], ['zoom'],
-            2, 8, 5, 18, 8, 32, 12, 60,
-          ],
-          'heatmap-opacity': 0.9,
+          'heatmap-opacity': 0.85,
         },
       });
 
