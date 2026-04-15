@@ -97,18 +97,17 @@ const MapComponent: React.FC<MapComponentProps> = ({
       
       {earthquakes.map((earthquake) => {
         const [lng, lat] = earthquake.geojson.coordinates;
-        const isSelected = selectedEarthquake?._id === earthquake._id;
-        
+        const isSelected = selectedEarthquake?.earthquake_id === earthquake.earthquake_id;
+
         return (
-          <div key={earthquake._id}>
-            <CustomGradientMarker
-              position={[lat, lng]}
-              radius={getMagnitudeSize(earthquake.mag) * (isSelected ? 1.2 : 1)}
-              color={getMagnitudeColor(earthquake.mag, earthquake.depth)}
-              opacity={getMarkerOpacity(earthquake.mag, earthquake.depth)}
-              onClick={() => onEarthquakeSelect(earthquake)}
-            />
-          </div>
+          <CustomGradientMarker
+            key={earthquake.earthquake_id}
+            position={[lat, lng]}
+            radius={getMagnitudeSize(earthquake.mag) * (isSelected ? 1.2 : 1)}
+            color={getMagnitudeColor(earthquake.mag, earthquake.depth)}
+            opacity={getMarkerOpacity(earthquake.mag, earthquake.depth)}
+            onClick={() => onEarthquakeSelect(earthquake)}
+          />
         );
       })}
       

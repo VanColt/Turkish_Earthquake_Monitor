@@ -1,19 +1,14 @@
 import axios from 'axios';
 
-const BASE_API_URL = 'https://api.orhanaydogdu.com.tr/deprem';
+const BASE_API_URL = '/api';
 
-// API endpoints
 const API_ENDPOINTS = {
-  LIVE: `${BASE_API_URL}/kandilli/live`,
-  FILTERED: `${BASE_API_URL}/kandilli/filtered`,
-  HISTORICAL: `${BASE_API_URL}/kandilli/historical`,
-  STATS: `${BASE_API_URL}/kandilli/stats`,
-  LATEST: `${BASE_API_URL}/kandilli/latest`,
-  CITY: `${BASE_API_URL}/kandilli/city`,
+  LIST: `${BASE_API_URL}/earthquakes`,
+  STATS: `${BASE_API_URL}/earthquakes/stats`,
+  DETAIL: (id: string) => `${BASE_API_URL}/earthquakes/${id}`,
 };
 
 export interface Earthquake {
-  _id: string;
   earthquake_id: string;
   provider: string;
   title: string;
@@ -66,7 +61,7 @@ export interface EarthquakeResponse {
   metadata: {
     date_starts: string;
     date_ends: string;
-    total: number;
+    count: number;
   };
   result: Earthquake[];
 }
@@ -108,70 +103,35 @@ export interface FilterParams {
   city_code?: number;
 }
 
-// Fetch live earthquake data (last 24 hours)
 export const fetchLiveEarthquakes = async (): Promise<EarthquakeResponse> => {
-  try {
-    const response = await axios.get<EarthquakeResponse>(API_ENDPOINTS.LIVE);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching live earthquake data:', error);
-    throw error;
-  }
+  const response = await axios.get<EarthquakeResponse>(API_ENDPOINTS.LIST, {
+    params: { limit: 500 },
+  });
+  return response.data;
 };
 
-// Fetch filtered earthquake data
-export const fetchFilteredEarthquakes = async (params: FilterParams): Promise<EarthquakeResponse> => {
-  try {
-    const response = await axios.get<EarthquakeResponse>(API_ENDPOINTS.FILTERED, { params });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching filtered earthquake data:', error);
-    throw error;
-  }
+export const fetchFilteredEarthquakes = async (
+  params: FilterParams
+): Promise<EarthquakeResponse> => {
+  const response = await axios.get<EarthquakeResponse>(API_ENDPOINTS.LIST, { params });
+  return response.data;
 };
 
-// Fetch historical earthquake data
-export const fetchHistoricalEarthquakes = async (year: number, month: number): Promise<EarthquakeResponse> => {
-  try {
-    const response = await axios.get<EarthquakeResponse>(`${API_ENDPOINTS.HISTORICAL}/${year}/${month}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching historical earthquake data:', error);
-    throw error;
-  }
+export const fetchEarthquakeStats = async (
+  params?: FilterParams
+): Promise<EarthquakeStatsResponse> => {
+  const response = await axios.get<EarthquakeStatsResponse>(API_ENDPOINTS.STATS, { params });
+  return response.data;
 };
 
-// Fetch earthquake statistics
-export const fetchEarthquakeStats = async (params?: FilterParams): Promise<EarthquakeStatsResponse> => {
-  try {
-    const response = await axios.get<EarthquakeStatsResponse>(API_ENDPOINTS.STATS, { params });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching earthquake statistics:', error);
-    throw error;
-  }
-};
-
-// Fetch latest earthquakes with limit
-export const fetchLatestEarthquakes = async (limit: number = 10): Promise<EarthquakeResponse> => {
-  try {
-    const response = await axios.get<EarthquakeResponse>(`${API_ENDPOINTS.LATEST}/${limit}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching latest earthquake data:', error);
-    throw error;
-  }
-};
-
-// Fetch earthquakes by city code
-export const fetchEarthquakesByCity = async (cityCode: number, params?: FilterParams): Promise<EarthquakeResponse> => {
-  try {
-    const response = await axios.get<EarthquakeResponse>(`${API_ENDPOINTS.CITY}/${cityCode}`, { params });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching city earthquake data:', error);
-    throw error;
-  }
+export const fetchEarthquakesByCity = async (
+  cityCode: number,
+  params?: FilterParams
+): Promise<EarthquakeResponse> => {
+  const response = await axios.get<EarthquakeResponse>(API_ENDPOINTS.LIST, {
+    params: { ...params, city_code: cityCode },
+  });
+  return response.data;
 };
 
 // Get color based on magnitude and depth - glowing blue effect

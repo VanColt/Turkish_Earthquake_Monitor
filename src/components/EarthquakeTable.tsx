@@ -203,7 +203,7 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
       variant="outlined"
     >
       <Table
-        rowKey="_id"
+        rowKey="earthquake_id"
         columns={columns}
         dataSource={earthquakes}
         loading={loading}
@@ -217,7 +217,7 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({
         scroll={{ x: true }}
         size="middle"
         rowClassName={(record) => 
-          record._id === selectedEarthquake?._id ? 'bg-gray-800' : ''
+          record.earthquake_id === selectedEarthquake?.earthquake_id ? 'bg-gray-800' : ''
         }
         onRow={useMemo(() => {
           return (record: Earthquake) => ({

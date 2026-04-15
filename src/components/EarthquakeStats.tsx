@@ -13,7 +13,7 @@ interface EarthquakeStatsProps {
   metadata: {
     date_starts: string;
     date_ends: string;
-    total: number;
+    count: number;
   } | null;
 }
 
@@ -98,9 +98,9 @@ const EarthquakeStats: React.FC<EarthquakeStatsProps> = ({ earthquakes, loading,
               precision={0}
               valueStyle={{ color: '#1677ff' }}
             />
-            {metadata && metadata.total > stats.totalEarthquakes && (
+            {metadata && metadata.count > stats.totalEarthquakes && (
               <Text type="secondary" className="block mt-2">
-                {metadata.total - stats.totalEarthquakes} more in full dataset
+                {metadata.count - stats.totalEarthquakes} more in full dataset
               </Text>
             )}
           </Card>

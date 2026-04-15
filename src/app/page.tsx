@@ -67,6 +67,8 @@ export default function Home() {
   const earthquakesRef = useRef<Earthquake[]>([]);
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastIngestedAtRef = useRef<number | null>(null);
+  const changePollRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use ref for refresh timing to avoid re-renders
   const nextRefreshTimeRef = useRef<Date | null>(null);
@@ -219,10 +221,37 @@ export default function Home() {
       }, 5 * 60 * 1000);
     }, calculateNextRefresh());
     
+    // Lightweight change-detection: every 30s, ask the server if anything new
+    // has been ingested. If yes, trigger a full refresh. This makes the UI
+    // react to the Vercel cron within ~30s of it running, instead of waiting
+    // up to 5 minutes for the next aligned tick.
+    changePollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch('/api/earthquakes/latest');
+        if (!res.ok) return;
+        const data = await res.json();
+        const ingestedAt: number | null = data?.latest?.ingested_at ?? null;
+        if (!ingestedAt) return;
+        if (lastIngestedAtRef.current == null) {
+          lastIngestedAtRef.current = ingestedAt;
+          return;
+        }
+        if (ingestedAt > lastIngestedAtRef.current) {
+          lastIngestedAtRef.current = ingestedAt;
+          // Force a refetch by resetting the interval cache sentinel.
+          lastFetchTimeRef.current = null;
+          fetchEarthquakes();
+        }
+      } catch {
+        // Swallow — next tick will retry
+      }
+    }, 30 * 1000);
+
     // Cleanup function
     return () => {
       if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
       if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+      if (changePollRef.current) clearInterval(changePollRef.current);
     };
   }, [fetchEarthquakes]);
 
