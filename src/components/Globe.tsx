@@ -7,7 +7,7 @@ import maplibregl, {
   StyleSpecification,
 } from 'maplibre-gl';
 import type { Earthquake } from '@/services/earthquakeService';
-import { Settings, DEFAULT_SETTINGS } from '@/lib/settings';
+import { Settings, DEFAULT_SETTINGS, AdminLevel } from '@/lib/settings';
 
 interface GlobeProps {
   earthquakes: Earthquake[];
@@ -357,6 +357,13 @@ export default function Globe({
   const earthquakesRef = useRef<Earthquake[]>(earthquakes);
   const settingsControlRef = useRef<IconButtonControl | null>(null);
   const settingsHandlerRef = useRef<(() => void) | null>(onOpenSettings ?? null);
+  // Tracks which admin-boundary GeoJSON files have been fetched so we
+  // load each level at most once and only when the user opts in.
+  const adminLoadedRef = useRef<Record<Exclude<AdminLevel, 'off'>, boolean>>({
+    regions: false,
+    provinces: false,
+    districts: false,
+  });
 
   useEffect(() => {
     earthquakesRef.current = earthquakes;
@@ -477,6 +484,58 @@ export default function Globe({
         },
         'water'
       );
+
+      // Admin boundary sources (regions / provinces / districts).
+      // Data: ttezer/turkiye-harita-verisi — derived from HDX COD-AB Türkiye.
+      // Start with empty FeatureCollections and populate on first demand
+      // so the initial payload isn't paying for overlays the user hasn't opened.
+      const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
+      map.addSource('admin-regions', { type: 'geojson', data: EMPTY_FC });
+      map.addSource('admin-provinces', { type: 'geojson', data: EMPTY_FC });
+      map.addSource('admin-districts', { type: 'geojson', data: EMPTY_FC });
+
+      // Render admin layers *below* the fault layers and earthquake markers
+      // so events always sit on top. We insert them before the fault glow,
+      // which means the draw order is: admin-fill → admin-line → faults → quakes.
+      const adminFill = (id: string, source: string, beforeId?: string) => {
+        map.addLayer(
+          {
+            id,
+            type: 'fill',
+            source,
+            layout: { visibility: 'none' },
+            paint: {
+              'fill-color': '#ffffff',
+              'fill-opacity': 0.02,
+              'fill-outline-color': 'transparent',
+            },
+          },
+          beforeId
+        );
+      };
+
+      const adminLine = (id: string, source: string, width: number, opacity: number) => {
+        map.addLayer({
+          id,
+          type: 'line',
+          source,
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': '#a8b4c8',
+            'line-width': width,
+            'line-opacity': opacity,
+          },
+        });
+      };
+
+      adminFill('admin-regions-fill', 'admin-regions', 'faults-glow');
+      adminLine('admin-regions-line', 'admin-regions', 1.2, 0.6);
+
+      adminFill('admin-provinces-fill', 'admin-provinces', 'faults-glow');
+      adminLine('admin-provinces-line', 'admin-provinces', 0.8, 0.5);
+
+      adminFill('admin-districts-fill', 'admin-districts', 'faults-glow');
+      adminLine('admin-districts-line', 'admin-districts', 0.5, 0.4);
 
       // Earthquake source + layers
       map.addSource('quakes', { type: 'geojson', data: toGeoJSON([], null) });
@@ -751,6 +810,58 @@ export default function Globe({
     if (map.isStyleLoaded()) apply();
     else map.once('load', apply);
   }, [settings]);
+
+  // Admin-level overlay (regions / provinces / districts).
+  // Fetched lazily the first time a level is selected; the matching fill +
+  // line layers are then toggled on, and all other levels hidden. Keeps the
+  // on-wire payload at zero until the user actually opens an overlay.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const LEVELS = ['regions', 'provinces', 'districts'] as const;
+
+    const setVis = (id: string, visible: boolean) => {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+      }
+    };
+
+    const apply = async () => {
+      const level = settings.adminLevel;
+
+      // Hide everything first, then reveal the selected level below.
+      for (const l of LEVELS) {
+        setVis(`admin-${l}-fill`, false);
+        setVis(`admin-${l}-line`, false);
+      }
+
+      if (level === 'off') return;
+
+      // Lazy-load the chosen level on first use. Cached on subsequent toggles.
+      if (!adminLoadedRef.current[level]) {
+        try {
+          const res = await fetch(`/tr-${level}.geojson`);
+          if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+          const data = await res.json();
+          const src = map.getSource(`admin-${level}`) as
+            | maplibregl.GeoJSONSource
+            | undefined;
+          src?.setData(data);
+          adminLoadedRef.current[level] = true;
+        } catch (err) {
+          console.error(`[globe] admin ${level} load failed:`, err);
+          return;
+        }
+      }
+
+      setVis(`admin-${level}-fill`, true);
+      setVis(`admin-${level}-line`, true);
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once('load', apply);
+  }, [settings.adminLevel]);
 
   return (
     <div

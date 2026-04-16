@@ -36,6 +36,7 @@ Turkish Earthquake Monitor ingests live data from the Kandilli Observatory and r
 - Magnitude, depth, and source provider details.
 
 ### Controls
+- **Admin-level switch** (bottom-center, always visible): one-click toggle between **OFF / 7 regions / 81 provinces / 973 districts**. Each level lazy-loads on first use and caches afterward.
 - **Settings panel**: view mode (markers / heatmap / both), magnitude filter, layer toggles (faults, airports, etc.).
 - **Full-screen toggle** alongside socials in the top bar, with icon swap on state.
 - Zoom controls in the bottom-right rail; status bar removed for a cleaner canvas.
@@ -57,6 +58,7 @@ Turkish Earthquake Monitor ingests live data from the Kandilli Observatory and r
   - [Kandilli Observatory API](https://github.com/orhanayd/kandilli-rasathanesi-api) by [Orhan Aydoğdu](https://github.com/orhanayd)
   - [Open-Meteo](https://open-meteo.com/) — historical + current weather
   - [GEM Global Active Faults Database](https://github.com/GEMScienceTools/gem-global-active-faults)
+  - Admin boundaries: [ttezer/turkiye-harita-verisi](https://github.com/ttezer/turkiye-harita-verisi), derived from [HDX COD-AB Türkiye](https://data.humdata.org/dataset/cod-ab-tur) (CC BY-IGO)
 
 ## Getting Started
 
@@ -143,6 +145,7 @@ Distributed under the MIT License. See `LICENSE`.
 - [Boğaziçi University](http://www.boun.edu.tr/) — supporting earthquake research
 - [GEM Foundation](https://www.globalquakemodel.org/) — Global Active Faults Database
 - [Open-Meteo](https://open-meteo.com/) — weather data
+- [ttezer/turkiye-harita-verisi](https://github.com/ttezer/turkiye-harita-verisi) and [HDX COD-AB Türkiye](https://data.humdata.org/dataset/cod-ab-tur) — administrative boundaries
 
 ## Contact
 
