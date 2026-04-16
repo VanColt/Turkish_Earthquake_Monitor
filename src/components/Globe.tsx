@@ -357,6 +357,9 @@ export default function Globe({
   const earthquakesRef = useRef<Earthquake[]>(earthquakes);
   const settingsControlRef = useRef<IconButtonControl | null>(null);
   const settingsHandlerRef = useRef<(() => void) | null>(onOpenSettings ?? null);
+  // Admin-overlay hover tooltip. Mutated imperatively from MapLibre event
+  // handlers so we don't re-render React on every mousemove.
+  const tooltipRef = useRef<HTMLDivElement>(null);
   // Tracks which admin-boundary GeoJSON files have been fetched so we
   // load each level at most once and only when the user opts in.
   const adminLoadedRef = useRef<Record<Exclude<AdminLevel, 'off'>, boolean>>({
@@ -738,6 +741,78 @@ export default function Globe({
         map.on('click', layer, onClick);
       }
 
+      // Admin-boundary hover tooltip.
+      // Layer-scoped events only fire when the layer is visible, so the
+      // tooltip automatically respects the current adminLevel without us
+      // having to gate on settings here. Each level formats differently:
+      //   region   → name + member count ("Akdeniz · 8 iller")
+      //   province → name + region + plate ("Adana · Akdeniz · 01")
+      //   district → name + parent province + plate ("Aladağ · Adana · 01")
+      const escape = (s: unknown) =>
+        String(s ?? '').replace(/[&<>"']/g, (c) =>
+          c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;'
+        );
+
+      const showTooltip = (title: string, sub: string, x: number, y: number) => {
+        const el = tooltipRef.current;
+        if (!el) return;
+        el.innerHTML = `<div class="display tracked text-[11px] text-sig leading-tight">${escape(
+          title
+        )}</div><div class="mono text-[10px] text-ink-2 leading-tight mt-0.5">${escape(sub)}</div>`;
+        el.style.display = 'block';
+        // Offset slightly so the cursor doesn't cover the label. Clamp to the
+        // right edge so the tooltip never clips off-screen.
+        const OFFSET = 14;
+        const rect = el.getBoundingClientRect();
+        const canvasRect = map.getCanvas().getBoundingClientRect();
+        const maxX = canvasRect.width - rect.width - 8;
+        const maxY = canvasRect.height - rect.height - 8;
+        el.style.left = `${Math.min(Math.max(x + OFFSET, 8), Math.max(8, maxX))}px`;
+        el.style.top = `${Math.min(Math.max(y + OFFSET, 8), Math.max(8, maxY))}px`;
+      };
+
+      const hideTooltip = () => {
+        const el = tooltipRef.current;
+        if (el) el.style.display = 'none';
+      };
+
+      const onAdminMove = (level: 'regions' | 'provinces' | 'districts') => (
+        e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }
+      ) => {
+        const f = e.features?.[0];
+        if (!f) return hideTooltip();
+        const p = f.properties ?? {};
+        const name = String(p.name ?? '—');
+
+        let sub = '';
+        if (level === 'regions') {
+          // No easy member count in properties; keep it minimal.
+          sub = 'REGION';
+        } else if (level === 'provinces') {
+          const region = p.region_name ? String(p.region_name) : '';
+          const plate = p.plate_code ? String(p.plate_code) : '';
+          sub = [region, plate].filter(Boolean).join(' · ') || 'PROVINCE';
+        } else {
+          const parent = p.parent_name ? String(p.parent_name) : '';
+          const plate = p.plate_code ? String(p.plate_code) : '';
+          sub = [parent, plate].filter(Boolean).join(' · ') || 'DISTRICT';
+        }
+
+        showTooltip(name, sub, e.point.x, e.point.y);
+        map.getCanvas().style.cursor = 'pointer';
+      };
+
+      const onAdminLeave = () => {
+        hideTooltip();
+        map.getCanvas().style.cursor = '';
+      };
+
+      for (const level of ['regions', 'provinces', 'districts'] as const) {
+        const fillId = `admin-${level}-fill`;
+        map.on('mousemove', fillId, onAdminMove(level));
+        map.on('mouseleave', fillId, onAdminLeave);
+      }
+
       // Ensure we are framed on Turkey precisely after load.
       map.fitBounds(TURKEY_BOUNDS, { padding: 48, duration: 0 });
     });
@@ -865,9 +940,17 @@ export default function Globe({
 
   return (
     <div
-      ref={container}
       className="absolute inset-0"
       style={{ background: 'radial-gradient(ellipse at center, #0a0a12 0%, #03030a 70%)' }}
-    />
+    >
+      <div ref={container} className="absolute inset-0" />
+      {/* Admin-overlay hover tooltip. Mutated imperatively from MapLibre
+          handlers — no React churn per mousemove. */}
+      <div
+        ref={tooltipRef}
+        className="pointer-events-none absolute z-30 glass-strong px-2.5 py-1.5"
+        style={{ display: 'none', top: 0, left: 0, whiteSpace: 'nowrap' }}
+      />
+    </div>
   );
 }

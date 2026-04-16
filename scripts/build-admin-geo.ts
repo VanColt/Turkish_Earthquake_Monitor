@@ -69,23 +69,59 @@ function merge(
   return geo;
 }
 
+// English translations for the 7 Geographic Regions of Türkiye.
+// The rest of the UI is in English, so regions are shown in English on the
+// map while the original Turkish name is kept under `name_tr` for reference.
+const REGION_EN: Record<string, string> = {
+  'TR-R-AKD': 'Mediterranean',
+  'TR-R-DOA': 'Eastern Anatolia',
+  'TR-R-EGE': 'Aegean',
+  'TR-R-GDA': 'Southeastern Anatolia',
+  'TR-R-ICA': 'Central Anatolia',
+  'TR-R-KAR': 'Black Sea',
+  'TR-R-MAR': 'Marmara',
+};
+
 function main() {
   const regions = merge(
     join(SRC_DIR, 'dist/geojson/regions.geojson'),
     join(SRC_DIR, 'data/processed/regions.metadata.json'),
     () => ({})
   );
+  // Overwrite the region `name` with its English translation, keeping the
+  // original Turkish name under `name_tr` so nothing is lost.
+  for (const f of regions.features) {
+    const id = f.properties.id;
+    const tr = f.properties.name as string | undefined;
+    const en = REGION_EN[id];
+    if (en) {
+      f.properties.name_tr = tr ?? null;
+      f.properties.name = en;
+    }
+  }
   writeFileSync(join(OUT_DIR, 'tr-regions.geojson'), JSON.stringify(regions));
   console.log(`regions: ${regions.features.length} features`);
+
+  // Build an id → name map of provinces so we can inject `parent_name`
+  // onto each district feature — saves a second lookup in the hover tooltip.
+  const provinceMeta = loadJSON<MetaEntry[]>(
+    join(SRC_DIR, 'data/processed/provinces.metadata.json')
+  );
+  const provinceNameById = new Map(provinceMeta.map((m) => [m.id, m.name] as const));
 
   const provinces = merge(
     join(SRC_DIR, 'dist/geojson/provinces.geojson'),
     join(SRC_DIR, 'data/processed/provinces.metadata.json'),
-    (m) => ({
-      region_id: m.region_id ?? null,
-      region_name: m.region_name ?? null,
-      plate_code: m.plate_code ?? null,
-    })
+    (m) => {
+      const regionEn = (m.region_id && REGION_EN[m.region_id]) || m.region_name || null;
+      return {
+        region_id: m.region_id ?? null,
+        region_name: regionEn, // English — matches the region overlay labels
+        region_name_tr: m.region_name ?? null,
+        parent_name: regionEn, // region containing this province (English)
+        plate_code: m.plate_code ?? null,
+      };
+    }
   );
   writeFileSync(join(OUT_DIR, 'tr-provinces.geojson'), JSON.stringify(provinces));
   console.log(`provinces: ${provinces.features.length} features`);
@@ -93,7 +129,11 @@ function main() {
   const districts = merge(
     join(SRC_DIR, 'dist/geojson/districts.geojson'),
     join(SRC_DIR, 'data/processed/districts.metadata.json'),
-    (m) => ({ parent_id: m.parent_id, plate_code: m.plate_code ?? null })
+    (m) => ({
+      parent_id: m.parent_id,
+      parent_name: (m.parent_id && provinceNameById.get(m.parent_id)) ?? null,
+      plate_code: m.plate_code ?? null,
+    })
   );
   writeFileSync(join(OUT_DIR, 'tr-districts.geojson'), JSON.stringify(districts));
   console.log(`districts: ${districts.features.length} features`);
