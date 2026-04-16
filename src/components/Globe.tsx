@@ -7,7 +7,7 @@ import maplibregl, {
   StyleSpecification,
 } from 'maplibre-gl';
 import type { Earthquake } from '@/services/earthquakeService';
-import { Settings, DEFAULT_SETTINGS } from '@/lib/settings';
+import { Settings, DEFAULT_SETTINGS, AdminLevel } from '@/lib/settings';
 
 interface GlobeProps {
   earthquakes: Earthquake[];
@@ -357,6 +357,16 @@ export default function Globe({
   const earthquakesRef = useRef<Earthquake[]>(earthquakes);
   const settingsControlRef = useRef<IconButtonControl | null>(null);
   const settingsHandlerRef = useRef<(() => void) | null>(onOpenSettings ?? null);
+  // Admin-overlay hover tooltip. Mutated imperatively from MapLibre event
+  // handlers so we don't re-render React on every mousemove.
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  // Tracks which admin-boundary GeoJSON files have been fetched so we
+  // load each level at most once and only when the user opts in.
+  const adminLoadedRef = useRef<Record<Exclude<AdminLevel, 'off'>, boolean>>({
+    regions: false,
+    provinces: false,
+    districts: false,
+  });
 
   useEffect(() => {
     earthquakesRef.current = earthquakes;
@@ -478,8 +488,74 @@ export default function Globe({
         'water'
       );
 
-      // Earthquake source + layers
-      map.addSource('quakes', { type: 'geojson', data: toGeoJSON([], null) });
+      // Admin boundary sources (regions / provinces / districts).
+      // Data: ttezer/turkiye-harita-verisi — derived from HDX COD-AB Türkiye.
+      // Start with empty FeatureCollections and populate on first demand
+      // so the initial payload isn't paying for overlays the user hasn't opened.
+      const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
+      map.addSource('admin-regions', { type: 'geojson', data: EMPTY_FC });
+      map.addSource('admin-provinces', { type: 'geojson', data: EMPTY_FC });
+      map.addSource('admin-districts', { type: 'geojson', data: EMPTY_FC });
+
+      // Render admin layers *below* the fault layers and earthquake markers
+      // so events always sit on top. We insert them before the fault glow,
+      // which means the draw order is: admin-fill → admin-line → faults → quakes.
+      const adminFill = (id: string, source: string, beforeId?: string) => {
+        map.addLayer(
+          {
+            id,
+            type: 'fill',
+            source,
+            layout: { visibility: 'none' },
+            paint: {
+              'fill-color': '#ffffff',
+              'fill-opacity': 0.02,
+              'fill-outline-color': 'transparent',
+            },
+          },
+          beforeId
+        );
+      };
+
+      const adminLine = (id: string, source: string, width: number, opacity: number) => {
+        map.addLayer({
+          id,
+          type: 'line',
+          source,
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': '#a8b4c8',
+            'line-width': width,
+            'line-opacity': opacity,
+          },
+        });
+      };
+
+      adminFill('admin-regions-fill', 'admin-regions', 'faults-glow');
+      adminLine('admin-regions-line', 'admin-regions', 1.2, 0.6);
+
+      adminFill('admin-provinces-fill', 'admin-provinces', 'faults-glow');
+      adminLine('admin-provinces-line', 'admin-provinces', 0.8, 0.5);
+
+      adminFill('admin-districts-fill', 'admin-districts', 'faults-glow');
+      adminLine('admin-districts-line', 'admin-districts', 0.5, 0.4);
+
+      // Earthquake source + layers.
+      // Seed with whatever is currently in the ref. If the fetch response
+      // arrived while the map was still loading, the earthquakes effect
+      // already tried (and failed) to write into a source that did not yet
+      // exist. Seeding here closes that race so markers appear on the first
+      // paint instead of waiting for the next poll.
+      const seed = earthquakesRef.current;
+      const seedLatest = seed.length
+        ? seed.reduce((a, b) =>
+            new Date(a.date_time).getTime() > new Date(b.date_time).getTime() ? a : b
+          ).earthquake_id
+        : null;
+      map.addSource('quakes', {
+        type: 'geojson',
+        data: toGeoJSON(seed, seedLatest),
+      });
 
       // Color ramp by magnitude — single source of truth
       const MAG_COLOR: maplibregl.ExpressionSpecification = [
@@ -679,6 +755,78 @@ export default function Globe({
         map.on('click', layer, onClick);
       }
 
+      // Admin-boundary hover tooltip.
+      // Layer-scoped events only fire when the layer is visible, so the
+      // tooltip automatically respects the current adminLevel without us
+      // having to gate on settings here. Each level formats differently:
+      //   region   → name + member count ("Akdeniz · 8 iller")
+      //   province → name + region + plate ("Adana · Akdeniz · 01")
+      //   district → name + parent province + plate ("Aladağ · Adana · 01")
+      const escape = (s: unknown) =>
+        String(s ?? '').replace(/[&<>"']/g, (c) =>
+          c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;'
+        );
+
+      const showTooltip = (title: string, sub: string, x: number, y: number) => {
+        const el = tooltipRef.current;
+        if (!el) return;
+        el.innerHTML = `<div class="display tracked text-[11px] text-sig leading-tight">${escape(
+          title
+        )}</div><div class="mono text-[10px] text-ink-2 leading-tight mt-0.5">${escape(sub)}</div>`;
+        el.style.display = 'block';
+        // Offset slightly so the cursor doesn't cover the label. Clamp to the
+        // right edge so the tooltip never clips off-screen.
+        const OFFSET = 14;
+        const rect = el.getBoundingClientRect();
+        const canvasRect = map.getCanvas().getBoundingClientRect();
+        const maxX = canvasRect.width - rect.width - 8;
+        const maxY = canvasRect.height - rect.height - 8;
+        el.style.left = `${Math.min(Math.max(x + OFFSET, 8), Math.max(8, maxX))}px`;
+        el.style.top = `${Math.min(Math.max(y + OFFSET, 8), Math.max(8, maxY))}px`;
+      };
+
+      const hideTooltip = () => {
+        const el = tooltipRef.current;
+        if (el) el.style.display = 'none';
+      };
+
+      const onAdminMove = (level: 'regions' | 'provinces' | 'districts') => (
+        e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }
+      ) => {
+        const f = e.features?.[0];
+        if (!f) return hideTooltip();
+        const p = f.properties ?? {};
+        const name = String(p.name ?? '—');
+
+        let sub = '';
+        if (level === 'regions') {
+          // No easy member count in properties; keep it minimal.
+          sub = 'REGION';
+        } else if (level === 'provinces') {
+          const region = p.region_name ? String(p.region_name) : '';
+          const plate = p.plate_code ? String(p.plate_code) : '';
+          sub = [region, plate].filter(Boolean).join(' · ') || 'PROVINCE';
+        } else {
+          const parent = p.parent_name ? String(p.parent_name) : '';
+          const plate = p.plate_code ? String(p.plate_code) : '';
+          sub = [parent, plate].filter(Boolean).join(' · ') || 'DISTRICT';
+        }
+
+        showTooltip(name, sub, e.point.x, e.point.y);
+        map.getCanvas().style.cursor = 'pointer';
+      };
+
+      const onAdminLeave = () => {
+        hideTooltip();
+        map.getCanvas().style.cursor = '';
+      };
+
+      for (const level of ['regions', 'provinces', 'districts'] as const) {
+        const fillId = `admin-${level}-fill`;
+        map.on('mousemove', fillId, onAdminMove(level));
+        map.on('mouseleave', fillId, onAdminLeave);
+      }
+
       // Ensure we are framed on Turkey precisely after load.
       map.fitBounds(TURKEY_BOUNDS, { padding: 48, duration: 0 });
     });
@@ -690,7 +838,12 @@ export default function Globe({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update source data when earthquakes change
+  // Update source data when earthquakes change.
+  // Gating on source existence (rather than isStyleLoaded) is deliberate:
+  // MapLibre can report the style as loaded before our `map.on('load', …)`
+  // handler has had a chance to register the `quakes` source, which would
+  // otherwise cause setData to silently no-op and leave the globe empty
+  // until the next poll.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -703,12 +856,15 @@ export default function Globe({
 
     const apply = () => {
       const src = map.getSource('quakes') as maplibregl.GeoJSONSource | undefined;
-      if (!src) return;
+      if (!src) {
+        // Source hasn't been added yet; retry after the load handler runs.
+        map.once('load', apply);
+        return;
+      }
       src.setData(toGeoJSON(earthquakes, latest));
     };
 
-    if (map.isStyleLoaded()) apply();
-    else map.once('load', apply);
+    apply();
   }, [earthquakes]);
 
   // Fly to selected
@@ -752,11 +908,71 @@ export default function Globe({
     else map.once('load', apply);
   }, [settings]);
 
+  // Admin-level overlay (regions / provinces / districts).
+  // Fetched lazily the first time a level is selected; the matching fill +
+  // line layers are then toggled on, and all other levels hidden. Keeps the
+  // on-wire payload at zero until the user actually opens an overlay.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const LEVELS = ['regions', 'provinces', 'districts'] as const;
+
+    const setVis = (id: string, visible: boolean) => {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+      }
+    };
+
+    const apply = async () => {
+      const level = settings.adminLevel;
+
+      // Hide everything first, then reveal the selected level below.
+      for (const l of LEVELS) {
+        setVis(`admin-${l}-fill`, false);
+        setVis(`admin-${l}-line`, false);
+      }
+
+      if (level === 'off') return;
+
+      // Lazy-load the chosen level on first use. Cached on subsequent toggles.
+      if (!adminLoadedRef.current[level]) {
+        try {
+          const res = await fetch(`/tr-${level}.geojson`);
+          if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+          const data = await res.json();
+          const src = map.getSource(`admin-${level}`) as
+            | maplibregl.GeoJSONSource
+            | undefined;
+          src?.setData(data);
+          adminLoadedRef.current[level] = true;
+        } catch (err) {
+          console.error(`[globe] admin ${level} load failed:`, err);
+          return;
+        }
+      }
+
+      setVis(`admin-${level}-fill`, true);
+      setVis(`admin-${level}-line`, true);
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once('load', apply);
+  }, [settings.adminLevel]);
+
   return (
     <div
-      ref={container}
       className="absolute inset-0"
       style={{ background: 'radial-gradient(ellipse at center, #0a0a12 0%, #03030a 70%)' }}
-    />
+    >
+      <div ref={container} className="absolute inset-0" />
+      {/* Admin-overlay hover tooltip. Mutated imperatively from MapLibre
+          handlers — no React churn per mousemove. */}
+      <div
+        ref={tooltipRef}
+        className="pointer-events-none absolute z-30 glass-strong px-2.5 py-1.5"
+        style={{ display: 'none', top: 0, left: 0, whiteSpace: 'nowrap' }}
+      />
+    </div>
   );
 }

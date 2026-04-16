@@ -8,6 +8,7 @@ import TopBar from '@/components/TopBar';
 import EventFeed from '@/components/EventFeed';
 import EventInspector from '@/components/EventInspector';
 import SettingsPanel from '@/components/SettingsPanel';
+import AdminLevelSwitch from '@/components/AdminLevelSwitch';
 import { DEFAULT_SETTINGS, Settings } from '@/lib/settings';
 
 import {
@@ -175,6 +176,16 @@ export default function Home() {
           </div>
         )}
 
+        {/* Admin-level overlay switch — always visible, bottom-center.
+            One-click switch between OFF / 7 regions / 81 provinces / 973 districts.
+            Kept out of settings on purpose so users can compare granularities fast. */}
+        <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 z-20 hidden md:flex">
+          <AdminLevelSwitch
+            value={settings.adminLevel}
+            onChange={(adminLevel) => setSettings((s) => ({ ...s, adminLevel }))}
+          />
+        </div>
+
         {/* Feed toggle button (visible when feed is hidden, desktop only) */}
         {!feedVisible && (
           <button
@@ -247,6 +258,27 @@ export default function Home() {
               </div>
             </div>
             <div className="mt-4 pt-3 border-t border-line display tracked text-[10px] text-ink-3">
+              ADMIN BOUNDARIES ·{' '}
+              <a
+                className="text-sig"
+                href="https://github.com/ttezer/turkiye-harita-verisi"
+                target="_blank"
+                rel="noreferrer"
+              >
+                ttezer/turkiye-harita-verisi
+              </a>
+              , derived from{' '}
+              <a
+                className="text-sig"
+                href="https://data.humdata.org/dataset/cod-ab-tur"
+                target="_blank"
+                rel="noreferrer"
+              >
+                HDX COD-AB Türkiye
+              </a>{' '}
+              (CC BY-IGO)
+            </div>
+            <div className="mt-3 pt-3 border-t border-line display tracked text-[10px] text-ink-3">
               BUILT BY{' '}
               <a className="text-sig" href="https://github.com/VanColt">
                 @VanColt
