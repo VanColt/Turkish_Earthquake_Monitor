@@ -540,8 +540,22 @@ export default function Globe({
       adminFill('admin-districts-fill', 'admin-districts', 'faults-glow');
       adminLine('admin-districts-line', 'admin-districts', 0.5, 0.4);
 
-      // Earthquake source + layers
-      map.addSource('quakes', { type: 'geojson', data: toGeoJSON([], null) });
+      // Earthquake source + layers.
+      // Seed with whatever is currently in the ref. If the fetch response
+      // arrived while the map was still loading, the earthquakes effect
+      // already tried (and failed) to write into a source that did not yet
+      // exist. Seeding here closes that race so markers appear on the first
+      // paint instead of waiting for the next poll.
+      const seed = earthquakesRef.current;
+      const seedLatest = seed.length
+        ? seed.reduce((a, b) =>
+            new Date(a.date_time).getTime() > new Date(b.date_time).getTime() ? a : b
+          ).earthquake_id
+        : null;
+      map.addSource('quakes', {
+        type: 'geojson',
+        data: toGeoJSON(seed, seedLatest),
+      });
 
       // Color ramp by magnitude — single source of truth
       const MAG_COLOR: maplibregl.ExpressionSpecification = [
@@ -824,7 +838,12 @@ export default function Globe({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update source data when earthquakes change
+  // Update source data when earthquakes change.
+  // Gating on source existence (rather than isStyleLoaded) is deliberate:
+  // MapLibre can report the style as loaded before our `map.on('load', …)`
+  // handler has had a chance to register the `quakes` source, which would
+  // otherwise cause setData to silently no-op and leave the globe empty
+  // until the next poll.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -837,12 +856,15 @@ export default function Globe({
 
     const apply = () => {
       const src = map.getSource('quakes') as maplibregl.GeoJSONSource | undefined;
-      if (!src) return;
+      if (!src) {
+        // Source hasn't been added yet; retry after the load handler runs.
+        map.once('load', apply);
+        return;
+      }
       src.setData(toGeoJSON(earthquakes, latest));
     };
 
-    if (map.isStyleLoaded()) apply();
-    else map.once('load', apply);
+    apply();
   }, [earthquakes]);
 
   // Fly to selected
